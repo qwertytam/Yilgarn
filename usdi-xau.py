@@ -31,7 +31,8 @@ import sys
 import subprocess
 import pkg_resources
 
-required = {'fecon236', 'pandas', 'numpy', 'sklearn', 'statsmodels', 'sympy'}
+required = {'fecon236', 'pandas', 'numpy', 'sklearn', 'statsmodels', 'sympy',
+            'pandas_datareader'}
 installed = {pkg.key for pkg in pkg_resources.working_set}
 missing = required - installed
 
