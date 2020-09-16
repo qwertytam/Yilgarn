@@ -26,7 +26,22 @@
 # %% md
 # ## 0. Preamble / Code Setup
 # %% codecell
-# SETUP :: Settings, system details, import modules as necessary
+# Check if required modules are installed in the kernel; and if not install them
+import sys
+import subprocess
+import pkg_resources
+
+required = {'fecon236', 'pandas', 'numpy', 'sklearn', 'statsmodels'}
+installed = {pkg.key for pkg in pkg_resources.working_set}
+missing = required - installed
+
+if missing:
+    print(missing)
+    python = sys.executable
+    subprocess.check_call([python, '-m', 'pip', 'install', *missing], stdout=subprocess.DEVNULL)
+else:
+    print('all ok')
+# %% codecell
 # fecon236 is a useful econometrics python module for access and using U.S.
 # Federal Reserve and related data
 import fecon236 as fe
@@ -53,10 +68,6 @@ import math
 # Will use sklearn and statsmodels for regression model testing
 from sklearn.preprocessing import PolynomialFeatures
 import statsmodels.api as sm
-
-# Set up sympy for printing formulae later
-import sympy as sp
-sp.init_printing(use_latex='mathjax')
 
 # These are the "Tableau 20" colors as RGB for later use
 tableau20 = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
