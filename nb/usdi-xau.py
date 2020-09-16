@@ -21,39 +21,224 @@
 #
 # ### Dependencies:
 # - Python: matplotlib, pandas, fecon236, statsmodels, sympy, pandas_datareader
-# - Written using Python 3.8.5
+# - Written using Python 3.8.5, Atom 1.51, Hydrogen 2.14.4
 
+# %% md
+# ## 0. Preamble / Code Setup
 # %% codecell
-# SETUP :: Settings, system details, import modules as necessary
-import fecon236 as fe   # Useful econometrics python module for access and using U.S. Federal Reserve and related data
+# Check if required modules are installed in the kernel; and if not install them
+import sys
+import subprocess
+import pkg_resources
+
+required = {'fecon236', 'pandas', 'numpy', 'sklearn', 'statsmodels', 'sympy',
+            'pandas_datareader'}
+installed = {pkg.key for pkg in pkg_resources.working_set}
+missing = required - installed
+
+if missing:
+    print(missing)
+    python = sys.executable
+    subprocess.check_call([python, '-m', 'pip', 'install', *missing], stdout=subprocess.DEVNULL)
+else:
+    print('all ok')
+# %% codecell
+# fecon236 is a useful econometrics python module for access and using U.S.
+# Federal Reserve and related data
+import fecon236 as fe
 fe.system.specs()
-pwd = fe.system.getpwd()   # present working directory as a variable
+pwd = fe.system.getpwd()
 print(" :: $pwd", pwd)
+
 #  If a module is modified, automatically reload it:
 %load_ext autoreload
-%autoreload 2
-#       Use 0 to disable this feature.
-
+%autoreload 2   # Use 0 to disable this feature.
 #  Notebook DISPLAY options:
-#      Represent pandas DataFrames as text; not HTML representation:
+# Represent pandas DataFrames as text; not HTML representation:
 import pandas as pd
-pd.set_option( 'display.notebook_repr_html', False )
+pd.set_option('display.notebook_repr_html', False)
 
 from matplotlib import pyplot as plt
 #  Generate PLOTS inside notebook, "inline" generates static png:
-# %matplotlib inline
-%matplotlib notebook
-#          "notebook" argument allows interactive zoom and resize.
+%matplotlib inline
+# "notebook" argument allows interactive zoom and resize.
+
 import numpy as np
+import math
+
+# Will use sklearn and statsmodels for regression model testing
 from sklearn.preprocessing import PolynomialFeatures
 import statsmodels.api as sm
-# Set up sympy for printing formulae later
-import sympy as sp
-sp.init_printing(use_latex='mathjax')
-x, y, b_0, b_1, b_2, b_3 = sp.symbols('x y b_0 b_1 b_2 b_3')
 
+# These are the "Tableau 20" colors as RGB for later use
+tableau20 = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
+             (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),
+             (148, 103, 189), (197, 176, 213), (140, 86, 75), (196, 156, 148),
+             (227, 119, 194), (247, 182, 210), (127, 127, 127), (199, 199, 199),
+             (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229)]
+
+# Scale the RGB values to the [0, 1] range, which is the format
+# matplotlib accepts.
+for i in range(len(tableau20)):
+    rescalef = 255.
+    r, g, b = tableau20[i]
+    tableau20[i] = (r / rescalef, g / rescalef, b / rescalef)
 # %% md
-# ## Retrieve Data, Determine Appropiate Start and End Dates for Analysis
+# ## 1. Define Custom Functions
+# ### Custom Plotting Function to Make Charts *Pretty*
+# %% codecell
+def plotfn(x, y, poly1d_fn):
+    """Draws plot from data input and defined fit function
+
+    Parameters
+    ----------
+    x : panda series
+        x axis data
+    y : panda series
+        y axis data
+    poly1d_fun : numpy poly1d
+        the polynomial definition e.g. x**2 + 2*x + 3
+
+    Returns
+    -------
+    Null
+    """
+    # Calculate ranges and intervals for chart display
+    xmin = int(math.floor(min(x)))
+    xmax = int(math.ceil(max(x)))
+    xrange = xmax - xmin
+    xnumticks = 8
+    xtickintvl = round(xrange / xnumticks * 2, 0) / 2
+
+    ymin = int(math.floor(min(y)))
+    ymax = int(math.ceil(max(y)))
+    yrange = ymax - ymin
+    ynumticks = 10
+    ytickintvl = int(math.ceil(yrange / ynumticks))
+
+    # Plot aspect ratio of ~1.33x
+    plt.figure(figsize=(12, 9))
+
+    # Remove the plot frame lines. They are unnecessary chartjunk.
+    ax = plt.subplot(111)
+    ax.spines["top"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_visible(False)
+
+    # Ensure that the axis ticks only show up on the bottom and left of the plot.
+    # Ticks on the right and top of the plot are generally unnecessary chartjunk.
+    ax.get_xaxis().tick_bottom()
+    ax.get_yaxis().tick_left()
+
+    # Limit the range of the plot to only where the data is to avoid unnecessary whitespace
+    plt.ylim(ymin, ymax)
+    plt.xlim(xmin, xmax)
+
+    # Make sure axis ticks are large enough to be easily read
+    # You don't want your viewers squinting to read your plot
+    tickfntsize = 14
+    plt.yticks(range(ymin, ymax + ytickintvl, ytickintvl),
+               [str(x) + "%" for x in range(ymin, ymax + ytickintvl, ytickintvl)],
+               fontsize=tickfntsize)
+    plt.xticks(np.arange(xmin, xmax + xtickintvl, xtickintvl),
+               [str(x) + "%" for x in np.arange(xmin, xmax + xtickintvl, xtickintvl)],
+               fontsize=tickfntsize)
+
+    # Provide tick lines across the plot to help viewers trace along
+    # the axis ticks; lines are light and small so they don't obscure the
+    # primary data lines.
+    xarange = np.arange(xmin, xmax + 0.001)
+    for yt in range(ymin, ymax + ytickintvl, ytickintvl):
+        plt.plot(xarange, [yt] * len(xarange), "--",
+                 lw=0.5, color="black", alpha=0.3)
+
+    # Remove the tick marks; they are unnecessary with the tick lines
+    # we just plotted.
+    plt.tick_params(axis="both", which="both", bottom=False, top=False,
+                    labelbottom=True, left=False, right=False,
+                    labelleft=True)
+
+    # Plot the two data series
+    result = plt.plot(x, y, color=tableau20[1], marker='o', ls='')
+    result = plt.plot(x, poly1d_fn(x), color=tableau20[2], ls='-')
+    return
+# %% md
+# ### Function to Define Polynomial Model
+# %% codecell
+def defnmodel(x, y, degree: int=1):
+    """Defines a polynomial model for data x and y of order degree using
+    ordinary least squares regression based
+
+    Parameters
+    ----------
+    x : panda series
+        x axis data
+    y : panda series
+        y axis data
+    degree : int, optional
+        the polynomial degree definition e.g. 2 for a quadractic polynomial
+
+    Returns
+    -------
+    xp : numpy array
+        array of degree columns containing the polynomial features e.g. for a 2
+        degree polynomial, features are [1, a, b, a^2, ab, b^2]
+    model : sm ols model
+        orindary least squares regression model produced by statsmodels
+    poly1d_fn : numpy poly1d
+        the polynomial definition e.g. x**2 + 2*x + 3
+    """
+    polyFeatures = PolynomialFeatures(degree) # Define the polynomial
+
+    # Reshape data from 1 by n to n by 1
+    xarray = np.array(x)
+    xarray = xarray[:, np.newaxis]
+
+    # Calculate polynomials for x
+    xp = polyFeatures.fit_transform(xarray)
+    # Reshape y from 1 by n to n by 1
+    yarray = np.array(y)
+    yarray = yarray[:, np.newaxis]
+
+    # Calculate the model and predictions
+    model = sm.OLS(yarray, xp).fit()
+    coef = model.params.tolist()    # Model coefficients
+    coef.reverse()                  # Reverse as poly1d takes in decline order
+    poly1d_fn = np.poly1d(coef)     # Create function from coefficients
+
+    return xp, model, poly1d_fn
+# %% md
+# ### Roll-up Function to Display Results
+# %% codecell
+def displayresults(x, y, degree: int=1):
+    """Displays summary statistics, regression results, and plot of data
+    versus polynomial model
+
+    Parameters
+    ----------
+    x : panda series
+        x axis data
+    y : panda series
+        y axis data
+    degree : int, optional
+        the polynomial degree definition e.g. 2 for a quadractic polynomial
+
+    Returns
+    -------
+    Null
+    """
+    # Display the summary stats and chart
+    xp, model, poly1d_fn = defnmodel(x, y, degree)
+    print(" ::  FIRST variable (y):")
+    print(y.describe(), '\n')
+    print(" ::  SECOND variable (x):")
+    print(x.describe(), '\n')
+    print(model.summary())
+    plotfn(x, y, poly1d_fn)
+    return
+# %% md
+# ## 1. Retrieve Data, Determine Appropiate Start and End Dates for Analysis
 # %% codecell
 # Get gold and inflation rates, both as monthly frequency
 # Notes: fecon236 uses median to resample (instead of say mean) and also
@@ -61,165 +246,110 @@ x, y, b_0, b_1, b_2, b_3 = sp.symbols('x y b_0 b_1 b_2 b_3')
 # occuring period; These adjustments will drive some small differences to
 # the analysis on th FRED blog
 # Daily London AM gold fix, nominal USD, converted to monthly
-goldN = fe.monthly( fe.get( 'GOLDAMGBD228NLBM' ) )
+gold_usdnom = fe.monthly(fe.get('GOLDAMGBD228NLBM'))
 # Daily London PM gold fix, nominal USD, converted to monthly
-# goldN = fe.get( fe.m4xau )
-goldNpchg = fe.nona( fe.pcent( goldN ) )    # Percentage change, removed NaN's
+# gold_usdnom = fe.get(fe.m4xau)
+# Percentage calcualtion for month on month i.e. frequency = 1
+freq = 1
+gold_usdnom_pc = fe.nona(fe.pcent(gold_usdnom, freq))
 # %% codecell
 # Inflation in use
 infcode = fe.m4cpi      # FRED code 'CPIAUCSL'
 # infcode = fe.m4pce    # FRED code 'PCEPI'
 # Synthetic average of 'CPIAUCSL', 'CPILFESL', 'PCEPI', 'CPILFESL'
 # infcode = fe.m4infl
-infIdx = fe.get ( fe.m4cpi )        # Index, not percentage change
-infpchg = fe.nona( fe.pcent(infIdx ) )  # Percentage change, removed NaN's
+infidx = fe.get (fe.m4cpi)        # Returns the index, not percentage change
+inf_pc = fe.nona(fe.pcent(infidx, freq))
 # %% codecell
 # Gold with USD inflation removed i.e. in real USD
-infBasedate = '2020-08-01'              # The base date for our index
-infBase = infIdx['Y'][infBasedate]      # Base date index value
-infIdxRebased = fe.div(infIdx, infBase) # Index rebased
+# First, calculate rebased inflation index
+inf_basedate = '2020-08-01'              # The base date for our index
+inf_base = infidx['Y'][inf_basedate]
+infidx_rebased = fe.div(infidx, inf_base)
 # %% codecell
-# Find the first and last overlapping dates for the two data series
-start = max(fe.head( goldN, 1).index[0], fe.head( infIdx, 1).index[0])
-end = min(fe.tail( goldN, 1).index[0], fe.tail( infIdx, 1).index[0])
+# Find the first and last overlapping dates for the two data series where
+# we are using values
+startv = max(fe.head(gold_usdnom, 1).index[0], fe.head(infidx, 1).index[0])
+endv = min(fe.tail(gold_usdnom, 1).index[0], fe.tail(infidx, 1).index[0])
 # %% codecell
 # Calculate the real gold price
-goldR = fe.div(goldN.loc[start:end], infIdxRebased.loc[start:end])
-goldRpchg = fe.nona( fe.pcent( goldR ) )    # Percentage change, removed NaN's
-# %%codecell
-# Manual start and ending date over-rides
-start = '1970-01-01'    # Date to align with Fed blog
-end = '2020-08-01'    # Date to align with Fed blog
-# %% md
-# ## Define a Custom Function to Dispaly Summary Statistics and Plot Data
+gold_usdrl = fe.div(gold_usdnom.loc[startv:endv],
+                    infidx_rebased.loc[startv:endv])
+gold_usdrl_pc = fe.nona(fe.pcent(gold_usdrl, freq))
 # %% codecell
-def statsandplot(x, y):
-    fe.stat2( y, x)                 # Display summary statistics
-    model = fe.regress( y, x )      # Calculate ols liner model
-    coef = model.params.tolist()    # Model coefficients
-    poly1d_fn = np.poly1d(coef)     # Create function from coefficients
-    # Display data and model
-    result = plt.plot( x, y, 'yo', x, poly1d_fn(x), '--k')
-    return
+# Find the first and last overlapping dates for the two data series where we
+# are using month on month percentage change
+startpc = max(fe.head(gold_usdrl_pc, 1).index[0], fe.head(inf_pc, 1).index[0])
+endpc = min(fe.tail(gold_usdrl_pc, 1).index[0], fe.tail(inf_pc, 1).index[0])
 # %% md
-# ## Look at the Correlation of Month on Month Inflation and Change in Nominal Gold Prices
+# ## 2. Look at the Correlation of Month on Month Change in Inflation and Nominal Gold Prices
 # %% codecell
-x = infpchg['Y'][start:end]
-y = goldNpchg['Y'][start:end]
-statsandplot(x, y)
+x = inf_pc['Y'][startpc:endpc]
+y = gold_usdnom_pc['Y'][startpc:endpc]
+displayresults(x, y, 1)
 # %% md
 # 2020-09-15: The regression analysis shows a strong relationship
-# (t-stat 4.06), however we need to remove the inflation contained in the
+# (t-stat 3.896), however we need to remove the inflation contained in the
 # nominal gold price
 # %% md
-# ## Look at the Correlation of Month on Month Inflation and Change in Real Gold Prices
+# ## 3. Look at the Correlation of Month on Month Change in Inflation and Real Gold Prices
 # %% codecell
-x = infpchg['Y'][start:end]
-y = goldRpchg['Y'][start:end]
-statsandplot(x, y)
+x = inf_pc['Y'][startpc:endpc]
+y = gold_usdrl_pc['Y'][startpc:endpc]
+displayresults(x, y, 1)
 # %% md
 # 2020-09-15: The regression analysis shows a relationship
-# (t-stat 2.43), with a 1% increase in inflation having a 0.0095% decrease in
-# the real price of gold. This is a very small movement.
+# (t-stat 2.245), with a 1% increase in inflation having a 1.3573% increase in
+# the real price of gold. However, the adj. r-squared is only 0.006, indicating
+# there are many other factors at play that influence the change in gold prices.
 # %% md
-# ## Look at the Correlation of Year on Year Inflation and Change in Nominal Gold Prices
+# ## 4. Look at the Correlation of Year on Year Change in Inflation and Real Gold Prices
 # %% codecell
 # Change percentage calcualtion to every 12 months
 freq = 12
-goldRpchg = fe.nona( fe.pcent( goldR, freq ) )
-infpchg = fe.nona( fe.pcent(infIdx, freq ) )
+gold_usdrl_apc = fe.nona(fe.pcent(gold_usdrl, freq))
+inf_apc = fe.nona(fe.pcent(infidx, freq))
+# %% codecell
+# Find the first and last overlapping dates for the two data series
+startapc = max(fe.head(gold_usdrl_apc, 1).index[0], fe.head(inf_apc, 1).index[0])
+endapc = min(fe.tail(gold_usdrl_apc, 1).index[0], fe.tail(inf_apc, 1).index[0])
 # %% codecell
 # Show same analysis as above
-x = infpchg['Y'][start:end]
-y = goldRpchg['Y'][start:end]
-statsandplot(x, y)
+x = inf_apc['Y'][startapc:endapc]
+y = gold_usdrl_apc['Y'][startapc:endapc]
+displayresults(x, y, 1)
 # %% md
 # 2020-09-15: The regression analysis shows a relationship
-# (t-stat 8.191), with a 1% increase in inflation having a 4.36% decrease in
-# the real price of gold; so actually showing a decrease in the real price
-# when the inflation increases; **an unexpected result**
+# (t-stat 8.119), with a 1% increase in inflation having a 2.5554% increase in
+# the real price of gold; the adj. r-squared has increased slightly to 0.095, so
+# still many other factors at play in determing the gold price
+#
+# Another way to consider this is, yes gold may hedge inflation, but with so
+# many other (so far unknown) factors impacting the price of gold, there is lot
+# of risk in using gold to purely hedge inflation
+#
+# Potentially there is greater movement in the gold price when the inflation
+# change is > ~8%
 # %% md
-# ### Alternative Models for Yearly Inflation and Real prices
-# First, lets explore a polynomial model
+# ## 5. Alternative Models for Year on Year Change in Inflation and Real prices
+# ### First, lets explore a polynomial model
 # %% codecell
-# Define our model
-degree = 2  # Two degree polynomial of the form
-sp.Eq(y, b_0 + b_1 * x + b_2 * x**2)
-degree = 3  # Three degree polynomial of the form
-sp.Eq(y, b_0 + b_1 * x + b_2 * x**2 + b_3 * x**3)
-polyFeatures = PolynomialFeatures(degree)
-# Reshape data from 1 by n to n by 1
-xarray = np.array(x)
-xarray = xarray[:, np.newaxis]
-# Calculate polynomials for x
-xp = polyFeatures.fit_transform(xarray)
-# Reshape y from 1 by n to n by 1
-yarray = np.array(y)
-yarray = yarray[:, np.newaxis]
-# Calculate the model and predictions
-model = sm.OLS( yarray, xp ).fit()
-ypred = model.predict(xp)
-# Display the result
-result = plt.plot( x, y, 'yo', x, ypred, '--k')
-print(model.summary())
+x = inf_apc['Y'][startapc:endapc]
+y = gold_usdrl_apc['Y'][startapc:endapc]
+displayresults(x, y, 2)
 # %% md
-# 2020-09-15: For `degree=2` We show a stronger relationship, however it is
-# not clear why a quadractic equation is an appropiate relationship between
-# inflation and gold prices
-# Adj. R-squared:                  0.212
-# ==============================================================================
-#                 coef    std err          t      P>|t|      [0.025      0.975]
-# ------------------------------------------------------------------------------
-# const         12.3537      2.304      5.362      0.000       7.829      16.878
-# x1            -5.8708      0.949     -6.189      0.000      -7.734      -4.008
-# x2             0.6899      0.073      9.394      0.000       0.546       0.834
-# ==============================================================================
-# For `degree=3`, relationship is weaker and not interesting
-
+# 2020-09-15: For `degree = 2` We show a stronger relationship (higher t-stats
+# and adj. r-squared of 0.212), however it is not clear why a quadractic
+# equation is an appropiate relationship between inflation and gold prices
+# %% codecell
+displayresults(x, y, 3)
 # %% md
-# STOP
-# STOP
-# STOP
-# STOP
-# STOP
-# STOP
-
-
-
-##############################################
-###
-### Scratch pad code
-###
-##############################################
-
-goldUSDd = fe.get( 'GOLDAMGBD228NLBM' )
-
-goldUSDd['Y']['1969-12-01':'1969-12-31']
-
-droprws = ['1969-12-25', '1969-12-26', '1970-01-01', '1970-03-27', '1970-03-30', '1970-05-25']
-goldUSDdrop = goldUSDd[~goldUSDd.index.isin(droprws)]
-goldUSDdrop['Y']['1969-12-01':'1969-12-31']
-
-dataframe = goldUSDdrop
-rule = 'MS'
-dfmean = dataframe.resample(rule, closed='left', label='left').mean()
-dfmean['Y']['1969-12-01':'1970-05-01']
-
-dfmeanpc  = dfmean.pct_change( periods=1 )
-dfmeanpc = dfmeanpc.dropna()
-dfmeanpc['Y'][start:'1970-05-01']
-
-dfmdn = fe.monthly( goldUSDd )
-dfmdn['Y']['1969-12-01':'1970-05-01']
-dfmdnpc  = dfmdn.pct_change( periods=1 )
-dfmdnpc = dfmdnpc.dropna()
-dfmdnpc['Y'][start:'1970-05-01']
-
-from sklearn.metrics import mean_squared_error
-mean_squared_error(dfmeanpc, dfmdnpc)
-
-df = inf
-df['Y']['1969-12-01':'1970-05-01']
-
-dfpc  = df.pct_change( periods=1 )
-dfpc['Y']['1969-12-01':'1970-05-01']
+# 2020-09-15: For `degree = 3`, relationship is weaker and not interesting
+# %% codecell
+displayresults(x, y, 4)
+# %% md
+# 2020-09-15: For `degree = 4`, relationship is even weaker and not interesting
+# %% codecell
+displayresults(x, y, 5)
+# %% md
+# 2020-09-15: For `degree = 5`, now relationships are unidentifiable
