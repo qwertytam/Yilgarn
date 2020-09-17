@@ -32,7 +32,7 @@ import subprocess
 import pkg_resources
 
 required = {'fecon236', 'pandas', 'numpy', 'sklearn', 'statsmodels', 'sympy',
-            'pandas_datareader'}
+            'pandas_datareader', 'matplotlib', }
 installed = {pkg.key for pkg in pkg_resources.working_set}
 missing = required - installed
 
@@ -40,8 +40,9 @@ if missing:
     print(missing)
     python = sys.executable
     subprocess.check_call([python, '-m', 'pip', 'install', *missing], stdout=subprocess.DEVNULL)
+    print('install process finished')
 else:
-    print('all ok')
+    print('no install required')
 # %% codecell
 # fecon236 is a useful econometrics python module for access and using U.S.
 # Federal Reserve and related data
