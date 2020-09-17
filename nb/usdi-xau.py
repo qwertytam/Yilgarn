@@ -32,14 +32,15 @@ import subprocess
 import pkg_resources
 
 required = {'fecon236', 'pandas', 'numpy', 'sklearn', 'statsmodels', 'sympy',
-            'pandas_datareader', 'matplotlib', }
+            'pandas_datareader', 'matplotlib', 'datetime'}
 installed = {pkg.key for pkg in pkg_resources.working_set}
 missing = required - installed
 
 if missing:
     print(missing)
     python = sys.executable
-    subprocess.check_call([python, '-m', 'pip', 'install', *missing], stdout=subprocess.DEVNULL)
+    subprocess.check_call([python, '-m', 'pip', 'install', *missing],
+                           stdout=subprocess.DEVNULL)
     print('install process finished')
 else:
     print('no install required')
@@ -66,6 +67,7 @@ from matplotlib import pyplot as plt
 
 import numpy as np
 import math
+import datetime as dt
 
 # Will use sklearn and statsmodels for regression model testing
 from sklearn.preprocessing import PolynomialFeatures
@@ -88,7 +90,7 @@ for i in range(len(tableau20)):
 # ## 1. Define Custom Functions
 # ### Custom Plotting Function to Make Charts *Pretty*
 # %% codecell
-def plotfn(x, y, poly1d_fn):
+def plotfn(x, y, poly1d_fn, title: str=''):
     """Draws plot from data input and defined fit function
 
     Parameters
@@ -99,6 +101,8 @@ def plotfn(x, y, poly1d_fn):
         y axis data
     poly1d_fun : numpy poly1d
         the polynomial definition e.g. x**2 + 2*x + 3
+    title : str, optional
+        title to include on the chart
 
     Returns
     -------
@@ -132,7 +136,8 @@ def plotfn(x, y, poly1d_fn):
     ax.get_xaxis().tick_bottom()
     ax.get_yaxis().tick_left()
 
-    # Limit the range of the plot to only where the data is to avoid unnecessary whitespace
+    # Limit the range of the plot to only where the data is to avoid
+    # unnecessary whitespace
     plt.ylim(ymin, ymax)
     plt.xlim(xmin, xmax)
 
@@ -159,6 +164,10 @@ def plotfn(x, y, poly1d_fn):
     plt.tick_params(axis="both", which="both", bottom=False, top=False,
                     labelbottom=True, left=False, right=False,
                     labelleft=True)
+
+    # Add title
+    plt.text(xmin + xrange / 2, ymax + yrange * 0.05, title,
+             fontsize=17, ha='center')
 
     # Plot the two data series
     result = plt.plot(x, y, color=tableau20[1], marker='o', ls='')
@@ -212,7 +221,7 @@ def defnmodel(x, y, degree: int=1):
 # %% md
 # ### Roll-up Function to Display Results
 # %% codecell
-def displayresults(x, y, degree: int=1):
+def displayresults(x, y, degree: int=1, title: str=''):
     """Displays summary statistics, regression results, and plot of data
     versus polynomial model
 
@@ -224,6 +233,8 @@ def displayresults(x, y, degree: int=1):
         y axis data
     degree : int, optional
         the polynomial degree definition e.g. 2 for a quadractic polynomial
+    title : str, optional
+        title to include on the chart
 
     Returns
     -------
@@ -236,7 +247,7 @@ def displayresults(x, y, degree: int=1):
     print(" ::  SECOND variable (x):")
     print(x.describe(), '\n')
     print(model.summary())
-    plotfn(x, y, poly1d_fn)
+    plotfn(x, y, poly1d_fn, title)
     return
 # %% md
 # ## 1. Retrieve Data, Determine Appropiate Start and End Dates for Analysis
@@ -287,7 +298,9 @@ endpc = min(fe.tail(gold_usdrl_pc, 1).index[0], fe.tail(inf_pc, 1).index[0])
 # %% codecell
 x = inf_pc['Y'][startpc:endpc]
 y = gold_usdnom_pc['Y'][startpc:endpc]
-displayresults(x, y, 1)
+title = 'MoM Change in Nominal Gold Price vs Inflation {} to {}'
+title = title.format(startpc.strftime("%b %Y"), endpc.strftime("%b %Y"))
+displayresults(x, y, 1, title)
 # %% md
 # 2020-09-15: The regression analysis shows a strong relationship
 # (t-stat 3.896), however we need to remove the inflation contained in the
@@ -297,7 +310,9 @@ displayresults(x, y, 1)
 # %% codecell
 x = inf_pc['Y'][startpc:endpc]
 y = gold_usdrl_pc['Y'][startpc:endpc]
-displayresults(x, y, 1)
+title = 'MoM Change in Real Gold Price vs Inflation {} to {}'
+title = title.format(startpc.strftime("%b %Y"), endpc.strftime("%b %Y"))
+displayresults(x, y, 1, title)
 # %% md
 # 2020-09-15: The regression analysis shows a relationship
 # (t-stat 2.245), with a 1% increase in inflation having a 1.3573% increase in
@@ -318,7 +333,9 @@ endapc = min(fe.tail(gold_usdrl_apc, 1).index[0], fe.tail(inf_apc, 1).index[0])
 # Show same analysis as above
 x = inf_apc['Y'][startapc:endapc]
 y = gold_usdrl_apc['Y'][startapc:endapc]
-displayresults(x, y, 1)
+title = 'YoY Change in Real Gold Price vs Inflation {} to {}'
+title = title.format(startapc.strftime("%b %Y"), endapc.strftime("%b %Y"))
+displayresults(x, y, 1, title)
 # %% md
 # 2020-09-15: The regression analysis shows a relationship
 # (t-stat 8.119), with a 1% increase in inflation having a 2.5554% increase in
@@ -337,20 +354,20 @@ displayresults(x, y, 1)
 # %% codecell
 x = inf_apc['Y'][startapc:endapc]
 y = gold_usdrl_apc['Y'][startapc:endapc]
-displayresults(x, y, 2)
+displayresults(x, y, 2, title)
 # %% md
 # 2020-09-15: For `degree = 2` We show a stronger relationship (higher t-stats
 # and adj. r-squared of 0.212), however it is not clear why a quadractic
 # equation is an appropiate relationship between inflation and gold prices
 # %% codecell
-displayresults(x, y, 3)
+displayresults(x, y, 3, title)
 # %% md
 # 2020-09-15: For `degree = 3`, relationship is weaker and not interesting
 # %% codecell
-displayresults(x, y, 4)
+displayresults(x, y, 4, title)
 # %% md
 # 2020-09-15: For `degree = 4`, relationship is even weaker and not interesting
 # %% codecell
-displayresults(x, y, 5)
+displayresults(x, y, 5, title)
 # %% md
 # 2020-09-15: For `degree = 5`, now relationships are unidentifiable
