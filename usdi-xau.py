@@ -20,82 +20,81 @@
 # Reserve Bank of St. Louis
 #
 # ### Dependencies:
-# - Python: matplotlib, pandas, fecon236, statsmodels, sympy, pandas_datareader
+# - Python: datetime, fecon236, matplotlib, numpy, pandas, pandas_datareader,
+# sklearn, statsmodels, sympy, seaborn
 # - Written using Python 3.8.5, Atom 1.51, Hydrogen 2.14.4
 
 # %% md
 # ## 0. Preamble / Code Setup
+# %% md
+# ### A. Check if required modules are installed in the kernel; and if not install them
 # %% codecell
-# Check if required modules are installed in the kernel; and if not install them
 import sys
 import subprocess
 import pkg_resources
-
-required = {'fecon236', 'pandas', 'numpy', 'sklearn', 'statsmodels', 'sympy',
-            'pandas_datareader', 'matplotlib', 'datetime'}
+required = {'datetime', 'fecon236', 'matplotlib', 'numpy', 'pandas',
+            'pandas_datareader', 'sklearn', 'statsmodels', 'sympy', 'seaborn'}
 installed = {pkg.key for pkg in pkg_resources.working_set}
 missing = required - installed
-
 if missing:
     python = sys.executable
     subprocess.check_call([python, '-m', 'pip', 'install', *missing],
                            stdout=subprocess.DEVNULL)
-
 # %% codecell
 # fecon236 is a useful econometrics python module for access and using U.S.
 # Federal Reserve and related data
 import fecon236 as fe
 fe.system.specs()
-pwd = fe.system.getpwd()
-print(" :: $pwd", pwd)
-
 #  If a module is modified, automatically reload it:
 %load_ext autoreload
 %autoreload 2   # Use 0 to disable this feature.
-#  Notebook DISPLAY options:
-# Represent pandas DataFrames as text; not HTML representation:
-import pandas as pd
-pd.set_option('display.notebook_repr_html', False)
-
-from matplotlib import pyplot as plt
-#  Generate PLOTS inside notebook, "inline" generates static png:
-%matplotlib inline
-# "notebook" argument allows interactive zoom and resize.
-
+# %% md
+#  ### B. Import useful modules for data wrangling
+# %% codecell
 import numpy as np
 import math
 import datetime as dt
-
-# Will use sklearn and statsmodels for regression model testing
+# %% md
+#  ### C. Will use sklearn and statsmodels for model development and testing
+# %% codecell
+from sklearn import mixture
+from sklearn.cluster import OPTICS, cluster_optics_dbscan
 from sklearn.preprocessing import PolynomialFeatures
+from sklearn.cluster import MeanShift, estimate_bandwidth, MiniBatchKMeans, KMeans
+from sklearn.metrics.pairwise import pairwise_distances_argmin
+# from sklearn.datasets import make_blobs
 import statsmodels.api as sm
-
-# These are the "Tableau 20" colors as RGB for later use
-tableau20 = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
-             (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),
-             (148, 103, 189), (197, 176, 213), (140, 86, 75), (196, 156, 148),
-             (227, 119, 194), (247, 182, 210), (127, 127, 127), (199, 199, 199),
-             (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229)]
-
-# Scale the RGB values to the [0, 1] range, which is the format
-# matplotlib accepts.
-for i in range(len(tableau20)):
-    rescalef = 255.
-    r, g, b = tableau20[i]
-    tableau20[i] = (r / rescalef, g / rescalef, b / rescalef)
+# %% md
+#  ### D. Notebook dispaly and formatting options
+# %% codecell
+# Represent pandas DataFrames as text; not HTML representation:
+import pandas as pd
+pd.set_option('display.notebook_repr_html', False)
+# Alter Jupyter option for the pretty display of variables
+from IPython.core.interactiveshell import InteractiveShell
+InteractiveShell.ast_node_interactivity = "all"
+# Import matplotlib and seaborn for plotting
+from matplotlib import pyplot as plt
+from matplotlib.colors import LogNorm   ### CAN WE GET RID OF THIS WITH SEABORN
+#  Generate plots inside notebook, "inline" generates static png
+%matplotlib inline
+# Use seaborn for to make matplotlib pretty and set the default theme styles
+import seaborn as sns
+sns.set_theme()
+sns.set_style("whitegrid")
 # %% md
 # ## 1. Define Custom Functions
-# ### Custom Plotting Function to Make Charts *Pretty*
+# ### A. Custom Plotting Function to Make Charts *Pretty*
 # %% codecell
-def plotfn(x, y, poly1d_fn, title: str=''):
+def sns_plotfn(data: pd.core.frame.DataFrame, degree: int=1, title: str=''):
     """Draws plot from data input and defined fit function
 
     Parameters
     ----------
-    x : panda series
-        x axis data
-    y : panda series
-        y axis data
+    data : panda DataFrame
+        Panda data frame containing the data, m rows by 2 columns with the
+        first column containing the indepedent variable (i.e. x) and the second
+        column containing the dependent variable (i.e. y)
     poly1d_fun : numpy poly1d
         the polynomial definition e.g. x**2 + 2*x + 3
     title : str, optional
@@ -105,84 +104,25 @@ def plotfn(x, y, poly1d_fn, title: str=''):
     -------
     Null
     """
-    # Calculate ranges and intervals for chart display
-    xmin = int(math.floor(min(x)))
-    xmax = int(math.ceil(max(x)))
-    xrange = xmax - xmin
-    xnumticks = 8
-    xtickintvl = round(xrange / xnumticks * 2, 0) / 2
-
-    ymin = int(math.floor(min(y)))
-    ymax = int(math.ceil(max(y)))
-    yrange = ymax - ymin
-    ynumticks = 10
-    ytickintvl = int(math.ceil(yrange / ynumticks))
-
-    # Plot aspect ratio of ~1.33x
-    plt.figure(figsize=(12, 9))
-
-    # Remove the plot frame lines. They are unnecessary chartjunk.
-    ax = plt.subplot(111)
-    ax.spines["top"].set_visible(False)
-    ax.spines["bottom"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_visible(False)
-
-    # Ensure that the axis ticks only show up on the bottom and left of the plot.
-    # Ticks on the right and top of the plot are generally unnecessary chartjunk.
-    ax.get_xaxis().tick_bottom()
-    ax.get_yaxis().tick_left()
-
-    # Limit the range of the plot to only where the data is to avoid
-    # unnecessary whitespace
-    plt.ylim(ymin, ymax)
-    plt.xlim(xmin, xmax)
-
-    # Make sure axis ticks are large enough to be easily read
-    # You don't want your viewers squinting to read your plot
-    tickfntsize = 14
-    plt.yticks(range(ymin, ymax + ytickintvl, ytickintvl),
-               [str(x) + "%" for x in range(ymin, ymax + ytickintvl, ytickintvl)],
-               fontsize=tickfntsize)
-    plt.xticks(np.arange(xmin, xmax + xtickintvl, xtickintvl),
-               [str(x) + "%" for x in np.arange(xmin, xmax + xtickintvl, xtickintvl)],
-               fontsize=tickfntsize)
-
-    # Provide tick lines across the plot to help viewers trace along
-    # the axis ticks; lines are light and small so they don't obscure the
-    # primary data lines.
-    xarange = np.arange(xmin, xmax + 0.001)
-    for yt in range(ymin, ymax + ytickintvl, ytickintvl):
-        plt.plot(xarange, [yt] * len(xarange), "--",
-                 lw=0.5, color="black", alpha=0.3)
-
-    # Remove the tick marks; they are unnecessary with the tick lines
-    # we just plotted.
-    plt.tick_params(axis="both", which="both", bottom=False, top=False,
-                    labelbottom=True, left=False, right=False,
-                    labelleft=True)
-
-    # Add title
-    plt.text(xmin + xrange / 2, ymax + yrange * 0.05, title,
-             fontsize=17, ha='center')
-
-    # Plot the two data series
-    result = plt.plot(x, y, color=tableau20[1], marker='o', ls='')
-    result = plt.plot(x, poly1d_fn(x), color=tableau20[2], ls='-')
+    xnm = list(data.columns)[0]
+    ynm = list(data.columns)[1]
+    snsplt = sns.lmplot(x=xnm, y=ynm, data=data, order=degree, aspect=1.333,
+                        palette="muted")
+    snsplt.despine(left=True)
     return
 # %% md
-# ### Function to Define Polynomial Model
+# ### B. Function to Define Polynomial Model
 # %% codecell
-def defnmodel(x, y, degree: int=1):
+def defnmodel(data: pd.core.frame.DataFrame, degree: int=1):
     """Defines a polynomial model for data x and y of order degree using
     ordinary least squares regression based
 
     Parameters
     ----------
-    x : panda series
-        x axis data
-    y : panda series
-        y axis data
+    data : panda DataFrame
+        Panda data frame containing the data, m rows by 2 columns with the
+        first column containing the indepedent variable (i.e. x) and the second
+        column containing the dependent variable (i.e. y)
     degree : int, optional
         the polynomial degree definition e.g. 2 for a quadractic polynomial
 
@@ -199,13 +139,14 @@ def defnmodel(x, y, degree: int=1):
     polyFeatures = PolynomialFeatures(degree) # Define the polynomial
 
     # Reshape data from 1 by n to n by 1
-    xarray = np.array(x)
+    xarray = np.array(data.iloc[:, 0])
     xarray = xarray[:, np.newaxis]
 
     # Calculate polynomials for x
     xp = polyFeatures.fit_transform(xarray)
+
     # Reshape y from 1 by n to n by 1
-    yarray = np.array(y)
+    yarray = np.array(data.iloc[:, 1])
     yarray = yarray[:, np.newaxis]
 
     # Calculate the model and predictions
@@ -216,18 +157,18 @@ def defnmodel(x, y, degree: int=1):
 
     return xp, model, poly1d_fn
 # %% md
-# ### Roll-up Function to Display Results
+# ### C. Roll-up Function to Display Results
 # %% codecell
-def displayresults(x, y, degree: int=1, title: str=''):
+def displayresults(data: pd.core.frame.DataFrame, degree: int=1, title: str=''):
     """Displays summary statistics, regression results, and plot of data
     versus polynomial model
 
     Parameters
     ----------
-    x : panda series
-        x axis data
-    y : panda series
-        y axis data
+    data : panda DataFrame
+        Panda data frame containing the data, m rows by 2 columns with the
+        first column containing the indepedent variable (i.e. x) and the second
+        column containing the dependent variable (i.e. y)
     degree : int, optional
         the polynomial degree definition e.g. 2 for a quadractic polynomial
     title : str, optional
@@ -237,17 +178,16 @@ def displayresults(x, y, degree: int=1, title: str=''):
     -------
     Null
     """
-    # Display the summary stats and chart
-    xp, model, poly1d_fn = defnmodel(x, y, degree)
+    xp, model, poly1d_fn = defnmodel(data, degree)
     print(" ::  FIRST variable (y):")
-    print(y.describe(), '\n')
+    print(data.iloc[:, 1].describe(), '\n')
     print(" ::  SECOND variable (x):")
-    print(x.describe(), '\n')
+    print(data.iloc[:, 0].describe(), '\n')
     print(model.summary())
-    plotfn(x, y, poly1d_fn, title)
+    sns_plotfn(data, degree, title)
     return
 # %% md
-# ## 1. Retrieve Data, Determine Appropiate Start and End Dates for Analysis
+# ## 2. Retrieve Data, Determine Appropiate Start and End Dates for Analysis
 # %% codecell
 # Get gold and inflation rates, both as monthly frequency
 # Notes: fecon236 uses median to resample (instead of say mean) and also
@@ -291,32 +231,34 @@ gold_usdrl_pc = fe.nona(fe.pcent(gold_usdrl, freq))
 startpc = max(fe.head(gold_usdrl_pc, 1).index[0], fe.head(inf_pc, 1).index[0])
 endpc = min(fe.tail(gold_usdrl_pc, 1).index[0], fe.tail(inf_pc, 1).index[0])
 # %% md
-# ## 2. Look at the Correlation of Month on Month Change in Inflation and Nominal Gold Prices
+# ## 3. Look at the Correlation of Month on Month Change in Inflation and Nominal Gold Prices
 # %% codecell
-x = inf_pc['Y'][startpc:endpc]
-y = gold_usdnom_pc['Y'][startpc:endpc]
+mom_npc = pd.concat([inf_pc[startpc:endpc], gold_usdnom_pc[startpc:endpc]], axis=1)
+mom_npc.columns = ['Monthly Inflation', 'Monthly Change in Gold Price (Nominal USD)']
+data = mom_npc
 title = 'MoM Change in Nominal Gold Price vs Inflation {} to {}'
 title = title.format(startpc.strftime("%b %Y"), endpc.strftime("%b %Y"))
-displayresults(x, y, 1, title)
+displayresults(data, 1, title)
 # %% md
 # 2020-09-15: The regression analysis shows a strong relationship
 # (t-stat 3.896), however we need to remove the inflation contained in the
 # nominal gold price
 # %% md
-# ## 3. Look at the Correlation of Month on Month Change in Inflation and Real Gold Prices
+# ## 4. Look at the Correlation of Month on Month Change in Inflation and Real Gold Prices
 # %% codecell
-x = inf_pc['Y'][startpc:endpc]
-y = gold_usdrl_pc['Y'][startpc:endpc]
+mom_rpc = pd.concat([inf_pc[startpc:endpc], gold_usdrl_pc[startpc:endpc]], axis=1)
+mom_rpc.columns = ['Monthly Inflation', 'Monthly Change in Gold Price (Real USD)']
+data = mom_rpc
 title = 'MoM Change in Real Gold Price vs Inflation {} to {}'
 title = title.format(startpc.strftime("%b %Y"), endpc.strftime("%b %Y"))
-displayresults(x, y, 1, title)
+displayresults(data, 1, title)
 # %% md
 # 2020-09-15: The regression analysis shows a relationship
 # (t-stat 2.245), with a 1% increase in inflation having a 1.3573% increase in
 # the real price of gold. However, the adj. r-squared is only 0.006, indicating
 # there are many other factors at play that influence the change in gold prices.
 # %% md
-# ## 4. Look at the Correlation of Year on Year Change in Inflation and Real Gold Prices
+# ## 5. Look at the Correlation of Year on Year Change in Inflation and Real Gold Prices
 # %% codecell
 # Change percentage calcualtion to every 12 months
 freq = 12
@@ -328,11 +270,13 @@ startapc = max(fe.head(gold_usdrl_apc, 1).index[0], fe.head(inf_apc, 1).index[0]
 endapc = min(fe.tail(gold_usdrl_apc, 1).index[0], fe.tail(inf_apc, 1).index[0])
 # %% codecell
 # Show same analysis as above
-x = inf_apc['Y'][startapc:endapc]
-y = gold_usdrl_apc['Y'][startapc:endapc]
+yoy_rpc = pd.concat([inf_apc[startapc:endapc],
+                     gold_usdrl_apc[startapc:endapc]], axis=1)
+yoy_rpc.columns = ['Yearly Inflation', 'Yearly Change in Gold Price (Real USD)']
+data = yoy_rpc
 title = 'YoY Change in Real Gold Price vs Inflation {} to {}'
 title = title.format(startapc.strftime("%b %Y"), endapc.strftime("%b %Y"))
-displayresults(x, y, 1, title)
+displayresults(data, 1, title)
 # %% md
 # 2020-09-15: The regression analysis shows a relationship
 # (t-stat 8.119), with a 1% increase in inflation having a 2.5554% increase in
@@ -346,25 +290,152 @@ displayresults(x, y, 1, title)
 # Potentially there is greater movement in the gold price when the inflation
 # change is > ~8%
 # %% md
-# ## 5. Alternative Models for Year on Year Change in Inflation and Real prices
-# ### First, lets explore a polynomial model
+# ## 6. Alternative Models for Year on Year Change in Inflation and Real prices
+# ### A. First, lets explore a polynomial model
 # %% codecell
-x = inf_apc['Y'][startapc:endapc]
-y = gold_usdrl_apc['Y'][startapc:endapc]
-displayresults(x, y, 2, title)
+displayresults(data, 2, title)
 # %% md
 # 2020-09-15: For `degree = 2` We show a stronger relationship (higher t-stats
 # and adj. r-squared of 0.212), however it is not clear why a quadractic
 # equation is an appropiate relationship between inflation and gold prices
 # %% codecell
-displayresults(x, y, 3, title)
+displayresults(data, 3, title)
 # %% md
 # 2020-09-15: For `degree = 3`, relationship is weaker and not interesting
 # %% codecell
-displayresults(x, y, 4, title)
+displayresults(data, 4, title)
 # %% md
 # 2020-09-15: For `degree = 4`, relationship is even weaker and not interesting
 # %% codecell
-displayresults(x, y, 5, title)
+displayresults(data, 5, title)
 # %% md
 # 2020-09-15: For `degree = 5`, now relationships are unidentifiable
+# %% md
+# ### B. Will now consider clustering analysis to see if there is a relationship at higher inflation changes
+# %% md
+# ### C. First, see the result of using k-means
+# %% codecell
+# Create NumPy array to hold data
+apc_npa = np.column_stack((inf_apc['Y'][startapc:endapc], gold_usdrl_apc['Y'][startapc:endapc]))
+# %% codecell
+# Compute the clustering with k-means
+n_clusters = 4
+apc_kmeans = KMeans(init='k-means++', n_clusters=n_clusters, n_init=10).fit(apc_npa)
+k_means_cluster_centers = apc_kmeans.cluster_centers_
+k_means_labels = pairwise_distances_argmin(apc_npa, k_means_cluster_centers)
+# %% codecell
+# Plot the results
+colors = tableau20
+plt.figure(figsize=(12, 9))
+for k, col in zip(range(n_clusters), colors):
+    my_members = k_means_labels == k
+    cluster_center = k_means_cluster_centers[k]
+    plt.plot(apc_npa[my_members, 0], apc_npa[my_members, 1], 'w',
+            markerfacecolor=col, marker='.')
+    plt.plot(cluster_center[0], cluster_center[1], 'o', markerfacecolor=col,
+            markeredgecolor='k', markersize=6)
+# %% md
+# 2020-09-15: For `n_clusters = 2`, k-means splits the data essentially along
+# horizontal axis, seperating when the gold price change into two halves of
+# when it is positive vs. negative. For `n_clusters = 3`, the data is further
+# disected along a horizontal line for gold change at approx 50%. A similar
+# trend occurs for `n_clusters = 4` with a furhter horizontal bisection. In
+# summary, it is not obvious that horizontal clustering provides any insight
+# into the gold vs. inflation relationship
+# %% md
+# ### D. Second, see the result of using Expectation-Maximization (EM) implemented using Gaussian Mixture Model (GMM)
+# %% codecell
+# fit a GMM
+n_components = 3
+gmmmdl = mixture.GaussianMixture(n_components=n_components, covariance_type='full')
+gmmmdl.fit(apc_npa)
+
+# display predicted scores by the model as a contour plot
+xln = np.linspace(math.floor(min(apc_npa[:, 0])), math.ceil(max(apc_npa[:, 0])))
+yln = np.linspace(math.floor(min(apc_npa[:, 1])), math.ceil(max(apc_npa[:, 1])))
+Xln, Yln = np.meshgrid(xln, yln)
+XX = np.array([Xln.ravel(), Yln.ravel()]).T
+Zln = -gmmmdl.score_samples(XX)
+Zln = Zln.reshape(Xln.shape)
+
+# %% codecell
+# Create and dsiplay the plot
+fig = plt.figure(figsize=(12, 9))
+CS = plt.contour(Xln, Yln, Zln, norm=LogNorm(vmin=1, vmax=100.0),
+                 levels=np.logspace(0, 2, 25));
+CB = plt.colorbar(CS, shrink=0.8);
+plt.scatter(apc_npa[:, 0], apc_npa[:, 1], .8);
+plt.show()
+
+# %% md
+# 2020-09-15: For `n_components = 2`, GMM essentially places a high likliehood
+# around the cluster of data centered on [3, 0] and doesn't pay much attention
+# to the rest. Not until `n_components ~ 10` does GMM lend any importance to
+# the data points in the upper left i.e. where this is a high change in
+# inflation and gold prices
+# %% md
+# ### E. Third, have a look at the OPTICS clustering algorithm
+# %% codecell
+# Define fit parameters
+clust = OPTICS(min_samples=5, xi=0.05, min_cluster_size=0.05)
+# Run the fit
+clust.fit(apc_npa)
+eps = 2.0
+labels_200 = cluster_optics_dbscan(reachability=clust.reachability_,
+                                   core_distances=clust.core_distances_,
+                                   ordering=clust.ordering_, eps=eps)
+# %% codecell
+# Create and dsiplay the plot using OPTICS
+fit = plt.figure(figsize=(12, 9))
+ax1 = plt.subplot(121)
+ax2 = plt.subplot(122)
+for klass, color in zip(range(0, 5), colors):
+    apc_npak = apc_npa[clust.labels_ == klass]
+    ax1.plot(apc_npak[:, 0], apc_npak[:, 1], color=color, marker='o',
+             ls='', alpha=0.3);
+
+ax1.plot(apc_npa[clust.labels_ == -1, 0],
+         apc_npa[clust.labels_ == -1, 1], 'k+', alpha=0.1);
+ax1.set_title('Automatic Clustering: OPTICS')
+# plt.show()
+# DBSCAN at eps=2.
+for klass, color in zip(range(0, 4), colors):
+    apc_npak = apc_npa[labels_200 == klass]
+    ax2.plot(apc_npak[:, 0], apc_npak[:, 1], color=color, marker='o',
+             ls='', alpha=0.3)
+ax2.plot(apc_npa[labels_200 == -1, 0], apc_npa[labels_200 == -1, 1],
+         'k+', alpha=0.1);
+title = 'Clustering at {0:.2f} epsilon cut: DBSCAN'.format(eps)
+ax2.set_title(title)
+plt.show()
+# %% md
+# 2020-09-15: So similar to previous methods, clustering appears as horizontal
+# bisections
+# %% md
+# ### F. Lastly, lets look at using Mean-Shift (MS)
+# %% codecell
+# Calculate the MS
+bandwidth = estimate_bandwidth(apc_npa, quantile=0.25)
+apc_ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
+apc_ms.fit(apc_npa)
+labels = apc_ms.labels_
+cluster_centers = apc_ms.cluster_centers_
+labels_unique = np.unique(labels)
+n_clusters_ = len(labels_unique)
+# %% codecell
+# Plot result
+fig = plt.figure(figsize=(12, 9));
+for k, color in zip(range(n_clusters_), colors):
+    my_members = labels == k
+    cluster_center = cluster_centers[k]
+    plt.plot(apc_npa[my_members, 0], apc_npa[my_members, 1], color=color,
+             marker='o', ls='', alpha=0.3)
+    plt.plot(cluster_center[0], cluster_center[1], 'o', markerfacecolor=color,
+             markeredgecolor='k', markersize=14)
+plt.title('Estimated number of clusters: {}'.format(n_clusters_))
+plt.show()
+# %% md
+# 2020-09-15: And so the same story continues, clustering appears as horizontal
+# bisections
+# %% md
+# ### End Of File
