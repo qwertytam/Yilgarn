@@ -10,4 +10,4 @@ Initial list of ideas to explore include:
 - Gold correlation with other major investment classes e.g. S&P500
 
 ### Format and code
-I will primarily be using Jupyter notebooks to explore the different ideas (stored in the `nb` directory), and pulling in relevant code repositaries that I come across that are interesting and useful to me.
+I will primarily be using Jupyter notebooks to explore the different ideas (stored in the `nb` directory), and pulling in relevant code repositories that I come across that are interesting and useful to me.
