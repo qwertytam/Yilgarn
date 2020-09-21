@@ -348,14 +348,14 @@ gold_usdrl_pc = fe.nona(fe.pcent(gold_usdrl, freq))
 startpc = max(fe.head(gold_usdrl_pc, 1).index[0], fe.head(inf_pc, 1).index[0])
 endpc = min(fe.tail(gold_usdrl_pc, 1).index[0], fe.tail(inf_pc, 1).index[0])
 # %% md
-# ## 2. Plot adn Review Time Series of Monthly Inflation and Gold Price Levels
+# ## 2. Plot and Review Time Series of Monthly Inflation and Gold Price Levels
 # %% codecell
 # TODO: Plot time series charts: nominal au in USD vs inf index, real au in USD vs inf index
 # %% codecell
 # TODO: Plot time series charts: change in: nominal au vs inf, real au vs inf
 # %% md
-# ## 2. Plot and Review Change in Inflation and Gold Price Levels
-# ### 2.1 Monthly Data
+# ## 3. Plot and Review Change in Inflation and Gold Price Levels
+# ### 3.1 Monthly Data
 # %% codecell
 # Nominal USD data
 mom_npc = pd.concat([inf_pc[startpc:endpc],
@@ -397,7 +397,7 @@ snsfcg_mom = snsfcg_mom.set_titles(col_template="{col_name}" + mom_pc_title_tmpl
 # (t-stat 3.896), however we need to remove the inflation contained in the
 # nominal gold price
 # %% md
-# ### 2.2 Yearly Data
+# ### 3.2 Yearly Data
 # %% codecell
 # Change percentage calcualtion to every 12 months
 freq = 12
@@ -435,7 +435,7 @@ snsfcg_yoy = snsfcg_yoy.set_titles(col_template="{col_name}" + yoy_pc_title_tmpl
 # Potentially there is greater movement in the gold price when the inflation
 # change is > ~8%
 # %% md
-# ### 2.3 Yearly Data with Higher Order Polynomials
+# ### 3.3 Yearly Data with Higher Order Polynomials
 # %% codecell
 for deg in range(2, 6):
     snsfcg_yoy = snslmplot(data=yoy_rpc, xcol=inf_apc_colnm,
@@ -456,13 +456,13 @@ for deg in range(2, 6):
 # %% md
 # 2020-09-15: For `degree = 5`, now relationships are unidentifiable
 # %% md
-# ## 3 Cluster Analysis
+# ## 4 Cluster Analysis
 # %% md
 # %% codecell
 # Create NumPy array to hold data
 apc_npa = np.column_stack((inf_apc['Y'][startapc:endapc], gold_usdrl_apc['Y'][startapc:endapc]))
 # %% md
-# ### 3.1 Expectation-Maximization
+# ### 4.1 Expectation-Maximization
 # %% codecell
 # fit a GMM
 n_components = 3
@@ -490,7 +490,7 @@ plt.show()
 # the data points in the upper left i.e. where this is a high change in
 # inflation and gold prices
 # %% md
-# ### 3.2 K-Means
+# ### 4.2 K-Means
 # %% codecell
 # Compute the clustering with k-means
 n_clusters = 4
@@ -518,7 +518,7 @@ for k, col in zip(range(n_clusters), colors):
 # summary, it is not obvious that horizontal clustering provides any insight
 # into the gold vs. inflation relationship
 # %% md
-# ### 3.3 OPTICS
+# ### 4.3 OPTICS
 # %% codecell
 # Define fit parameters
 clust = OPTICS(min_samples=5, xi=0.05, min_cluster_size=0.05)
@@ -556,7 +556,7 @@ plt.show()
 # 2020-09-15: So similar to previous methods, clustering appears as horizontal
 # bisections
 # %% md
-# ### 3.4 Mean-Shift (MS)
+# ### 4.4 Mean-Shift (MS)
 # %% codecell
 # Calculate the MS
 bandwidth = estimate_bandwidth(apc_npa, quantile=0.25)
