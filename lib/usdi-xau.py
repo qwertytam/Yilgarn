@@ -64,7 +64,7 @@ from sklearn.metrics.pairwise import pairwise_distances_argmin
 # from sklearn.datasets import make_blobs
 import statsmodels.api as sm
 # %% codecell
-# Notebook dispaly and formatting options
+# Notebook display and formatting options
 # Represent pandas DataFrames as text; not HTML representation:
 import pandas as pd
 pd.set_option('display.notebook_repr_html', False)
@@ -201,7 +201,7 @@ def snslmplot(data: pd.core.frame.DataFrame, xcol: str, ycol: str,
         variables 'y1' and 'y2', this column would contain either 'y1' or 'y2'
         to identify which rows pertain to the relevant y variable
     degree : int, optional
-        The polynomial degree definition e.g. 2 for a quadractic polynomial
+        The polynomial degree definition e.g. 2 for a quadratic polynomial
     col_wrap : int, optional
         The number of facets to display per row i.e. wrap on
     title : str, optional
@@ -232,7 +232,7 @@ def defnmodel(data: pd.core.frame.DataFrame, degree: int=1):
     ----------
     data : panda DataFrame
         Panda data frame containing the data, m rows by 2 columns with the
-        first column containing the indepedent variable (i.e. x) and the second
+        first column containing the independent variable (i.e. x) and the second
         column containing the dependent variable (i.e. y)
     degree : int, optional
         The polynomial degree definition e.g. 1 for linear, 2 for a
@@ -241,12 +241,12 @@ def defnmodel(data: pd.core.frame.DataFrame, degree: int=1):
     Returns
     -------
     xp : numpy array
-        array of degree columns containing the polynomial features e.g. for a 2
+        Array of degree columns containing the polynomial features e.g. for a 2
         degree polynomial, features are [1, a, b, a^2, ab, b^2]
     yarray : numpy array
-        array of dependent variable data
+        Array of dependent variable data
     modelresults : sm ols model fit results
-        orindary least squares regression model produced by statsmodels with
+        Ordinary least squares regression model produced by statsmodels with
         results
     poly1d_fn : numpy poly1d
         the polynomial definition e.g. x**2 + 2*x + 3
@@ -282,11 +282,11 @@ def dispmodel(data: pd.core.frame.DataFrame, degree: int=1):
     ----------
     data : panda DataFrame
         Panda data frame containing the data, m rows by 2 columns with the
-        first column containing the indepedent variable (i.e. x) and the second
+        first column containing the independent variable (i.e. x) and the second
         column containing the dependent variable (i.e. y)
     degree : int, optional
         The polynomial degree definition e.g. 1 for linear, 2 for a
-        quadractic polynomial
+        quadratic polynomial
 
     Returns
     -------
@@ -304,18 +304,18 @@ def dispmodel(data: pd.core.frame.DataFrame, degree: int=1):
 
     return
 # %% md
-# ## 1. Retrieve Data, Determine Appropiate Start and End Dates for Analysis
+# ## 1. Retrieve Data, Determine Appropriate Start and End Dates for Analysis
 # %% codecell
 # Get gold and inflation rates, both as monthly frequency
 # Notes: fecon236 uses median to resample (instead of say mean) and also
 # replaces FRED empty data (marked with a ".") with data from previously
-# occuring period; These adjustments will drive some small differences to
-# the analysis on th FRED blog
+# occurring period; These adjustments will drive some small differences to
+# the analysis on the FRED blog
 # Daily London AM gold fix, nominal USD, converted to monthly
 gold_usdnom = fe.monthly(fe.get('GOLDAMGBD228NLBM'))
 # Daily London PM gold fix, nominal USD, converted to monthly
 # gold_usdnom = fe.get(fe.m4xau)
-# Percentage calcualtion for month on month i.e. frequency = 1
+# Percentage calculation for month on month i.e. frequency = 1
 freq = 1
 gold_usdnom_pc = fe.nona(fe.pcent(gold_usdnom, freq))
 # %% codecell
@@ -399,7 +399,7 @@ snsfcg_mom = snsfcg_mom.set_titles(col_template="{col_name}" + mom_pc_title_tmpl
 # %% md
 # ### 3.2 Yearly Data
 # %% codecell
-# Change percentage calcualtion to every 12 months
+# Change percentage calculation to every 12 months
 freq = 12
 gold_usdrl_apc = fe.nona(fe.pcent(gold_usdrl, freq))
 inf_apc = fe.nona(fe.pcent(infidx, freq))
@@ -418,15 +418,17 @@ yoy_rpc.columns = [inf_apc_colnm, gold_usdrl_apc_colnm]
 # Display the chart
 snsfcg_yoy = snslmplot(data=yoy_rpc, xcol=inf_apc_colnm,
                        ycol=gold_usdrl_apc_colnm, degree=1)
-yoy_pc_title_tmplte = ' vs. Inflation {} to {}'
+yoy_pc_title_tmplte = 'Yearly Change in Gold Price (Real USD) vs. Inflation {} to {}'
 yoy_pc_title_tmplte =  yoy_pc_title_tmplte.format(startapc.strftime("%b %Y"),
                                                   endapc.strftime("%b %Y"))
-snsfcg_yoy = snsfcg_yoy.set_titles(col_template="{col_name}" + yoy_pc_title_tmplte)
+# snsfcg_yoy = snsfcg_yoy.set_titles(col_template="{col_name}" + yoy_pc_title_tmplte)
+for ax in snsfcg_yoy.axes.flat:
+    gax = ax.set_title(yoy_pc_title_tmplte)
 # %% md
 # 2020-09-15: The regression analysis shows a relationship
 # (t-stat 8.119), with a 1% increase in inflation having a 2.5554% increase in
 # the real price of gold; the adj. r-squared has increased slightly to 0.095, so
-# still many other factors at play in determing the gold price
+# still many other factors at play in determining the gold price
 #
 # Another way to consider this is, yes gold may hedge inflation, but with so
 # many other (so far unknown) factors impacting the price of gold, there is lot
@@ -443,12 +445,12 @@ for deg in range(2, 6):
     for ax in snsfcg_yoy.axes.flat:
         gax = ax.set_title('Polynomial Order: {0}'.format(deg))
 # %% codecell
-# TODO: Change plotting method so that each plot is a subplot..use custom
+# TODO: Change plotting method so that each plot is a subplot...use custom
 # function with map? ref: https://seaborn.pydata.org/generated/seaborn.FacetGrid.html
 # %% md
 # 2020-09-15: For `degree = 2` We show a stronger relationship (higher t-stats
-# and adj. r-squared of 0.212), however it is not clear why a quadractic
-# equation is an appropiate relationship between inflation and gold prices
+# and adj. r-squared of 0.212), however it is not clear why a quadratic
+# equation is an appropriate relationship between inflation and gold prices
 # %% md
 # 2020-09-15: For `degree = 3`, relationship is weaker and not interesting
 # %% md
@@ -457,7 +459,6 @@ for deg in range(2, 6):
 # 2020-09-15: For `degree = 5`, now relationships are unidentifiable
 # %% md
 # ## 4 Cluster Analysis
-# %% md
 # %% codecell
 # Create NumPy array to hold data
 apc_npa = np.column_stack((inf_apc['Y'][startapc:endapc], gold_usdrl_apc['Y'][startapc:endapc]))
@@ -474,18 +475,22 @@ yln = np.linspace(math.floor(min(apc_npa[:, 1])), math.ceil(max(apc_npa[:, 1])))
 Xln, Yln = np.meshgrid(xln, yln)
 XX = np.array([Xln.ravel(), Yln.ravel()]).T
 Zln = -gmmmdl.score_samples(XX)
-Zln = Zln.reshape(Xln.shape)
+Zln = Zln.reshape(Xln.shape);
 # %% codecell
-# Create and dsiplay the plot
+# Create and display the plot
 fig = plt.figure(figsize=(12, 9))
 CS = plt.contour(Xln, Yln, Zln, norm=LogNorm(vmin=1, vmax=100.0),
                  levels=np.logspace(0, 2, 25));
 CB = plt.colorbar(CS, shrink=0.8);
-plt.scatter(apc_npa[:, 0], apc_npa[:, 1], .8);
+g = plt.scatter(apc_npa[:, 0], apc_npa[:, 1], .8);
 plt.show()
+# TODO: Label axes
+# TODO: Add title
+# TODO: Do for n_components = [2, 3, 4, 6, 10]
+# TODO: For multiple n_components, draw as subplots
 # %% md
-# 2020-09-15: For `n_components = 2`, GMM essentially places a high likliehood
-# around the cluster of data centered on [3, 0] and doesn't pay much attention
+# 2020-09-15: For `n_components = 2`, GMM essentially places a high likelihood
+# around the cluster of data centred on [3, 0] and doesn't pay much attention
 # to the rest. Not until `n_components ~ 10` does GMM lend any importance to
 # the data points in the upper left i.e. where this is a high change in
 # inflation and gold prices
@@ -499,24 +504,27 @@ k_means_cluster_centers = apc_kmeans.cluster_centers_
 k_means_labels = pairwise_distances_argmin(apc_npa, k_means_cluster_centers)
 # %% codecell
 # Plot the results
-# colors = tableau20
-colors = sns.color_palette('muted')
+colours = sns.color_palette('muted')
 g = plt.figure(figsize=(12, 9))
-for k, col in zip(range(n_clusters), colors):
+for k, col in zip(range(n_clusters), colours):
     my_members = k_means_labels == k
     cluster_center = k_means_cluster_centers[k]
     g = plt.plot(apc_npa[my_members, 0], apc_npa[my_members, 1], 'w',
             markerfacecolor=col, marker='.')
     g = plt.plot(cluster_center[0], cluster_center[1], 'o', markerfacecolor=col,
             markeredgecolor='k', markersize=6)
+# TODO: Label axes
+# TODO: Add title
+# TODO: Do for n_clusters = [2, 3, 4, 5]
+# TODO: For multiple n_clusters, draw as subplots
 # %% md
 # 2020-09-15: For `n_clusters = 2`, k-means splits the data essentially along
-# horizontal axis, seperating when the gold price change into two halves of
+# horizontal axis, separating when the gold price change into two halves of
 # when it is positive vs. negative. For `n_clusters = 3`, the data is further
-# disected along a horizontal line for gold change at approx 50%. A similar
-# trend occurs for `n_clusters = 4` with a furhter horizontal bisection. In
-# summary, it is not obvious that horizontal clustering provides any insight
-# into the gold vs. inflation relationship
+# dissected along a horizontal line for gold change at approximately 50%.
+# A similar trend occurs for `n_clusters = 4` with a further horizontal
+# bisection. In summary, it is not obvious that horizontal clustering provides
+# any insight into the gold vs. inflation relationship
 # %% md
 # ### 4.3 OPTICS
 # %% codecell
@@ -527,9 +535,9 @@ clust.fit(apc_npa)
 eps = 2.0
 labels_200 = cluster_optics_dbscan(reachability=clust.reachability_,
                                    core_distances=clust.core_distances_,
-                                   ordering=clust.ordering_, eps=eps)
+                                   ordering=clust.ordering_, eps=eps);
 # %% codecell
-# Create and dsiplay the plot using OPTICS
+# Create and display the plot using OPTICS
 fit = plt.figure(figsize=(12, 9))
 ax1 = plt.subplot(121)
 ax2 = plt.subplot(122)
@@ -552,6 +560,10 @@ g = ax2.plot(apc_npa[labels_200 == -1, 0], apc_npa[labels_200 == -1, 1],
 title = 'Clustering at {0:.2f} epsilon cut: DBSCAN'.format(eps)
 g = ax2.set_title(title)
 plt.show()
+# TODO: Label axes
+# TODO: Do for eps = [0.5, 2]
+# TODO: To explore and understand significance of changing min_samples=5,
+# xi=0.05, min_cluster_size=0.05
 # %% md
 # 2020-09-15: So similar to previous methods, clustering appears as horizontal
 # bisections
@@ -565,7 +577,7 @@ apc_ms.fit(apc_npa)
 labels = apc_ms.labels_
 cluster_centers = apc_ms.cluster_centers_
 labels_unique = np.unique(labels)
-n_clusters_ = len(labels_unique)
+n_clusters_ = len(labels_unique);
 # %% codecell
 # Plot result
 fig = plt.figure(figsize=(12, 9));
@@ -578,11 +590,15 @@ for k, color in zip(range(n_clusters_), colors):
              markeredgecolor='k', markersize=14)
 title = plt.title('Estimated number of clusters: {}'.format(n_clusters_))
 plt.show()
+# TODO: Label axes
+# TODO: Add title
+# TODO: Do for quantile = [0.05, 0.1, 0.2, 0.25, 0.4]
+# TODO: For multiple quantile, draw as subplots
 # %% md
 # 2020-09-15: And so the same story continues, clustering appears as horizontal
 # bisections
 # %% md
-# ## Appendicies
+# ## Appendices
 # ### A.1 Inflation vs. nominal gold prices, monthly, polynomial order = 1
 # %% codecell
 dispmodel(mom_npc)
