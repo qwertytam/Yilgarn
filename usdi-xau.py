@@ -169,12 +169,12 @@ def frmtaxislbls(snsplt, fmt: str='{:.0}', fmt0: str=':.0%',
     if axis == 'x':
         for ax in axobjs:
             ticks = ax.get_xticks()
-            lbls = fmtlbls(fmt, fmt0, ticks, tickscle, tickscle0)
+            lbls = fmtticks(fmt, fmt0, ticks, tickscle, tickscle0)
             snsplt.set_xticklabels(lbls)
     elif axis == 'y':
         for ax in axobjs:
             ticks = ax.get_yticks()
-            lbls = fmtlbls(fmt, fmt0, ticks, tickscle, tickscle0)
+            lbls = fmtticks(fmt, fmt0, ticks, tickscle, tickscle0)
             snsplt.set_yticklabels(lbls)
 
     return
@@ -458,6 +458,10 @@ for deg in range(2, 6):
 # %% md
 # ## 3 Cluster Analysis
 # %% md
+# %% codecell
+# Create NumPy array to hold data
+apc_npa = np.column_stack((inf_apc['Y'][startapc:endapc], gold_usdrl_apc['Y'][startapc:endapc]))
+# %% md
 # ### 3.1 Expectation-Maximization
 # %% codecell
 # fit a GMM
@@ -487,9 +491,6 @@ plt.show()
 # inflation and gold prices
 # %% md
 # ### 3.2 K-Means
-# %% codecell
-# Create NumPy array to hold data
-apc_npa = np.column_stack((inf_apc['Y'][startapc:endapc], gold_usdrl_apc['Y'][startapc:endapc]))
 # %% codecell
 # Compute the clustering with k-means
 n_clusters = 4
