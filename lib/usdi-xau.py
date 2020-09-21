@@ -549,9 +549,9 @@ labels_200 = cluster_optics_dbscan(reachability=clust.reachability_,
 fit = plt.figure(figsize=(12, 9))
 ax1 = plt.subplot(121)
 ax2 = plt.subplot(122)
-for klass, color in zip(range(0, 5), colors):
+for klass, colour in zip(range(0, 5), colours):
     apc_npak = apc_npa[clust.labels_ == klass]
-    g = ax1.plot(apc_npak[:, 0], apc_npak[:, 1], color=color, marker='o',
+    g = ax1.plot(apc_npak[:, 0], apc_npak[:, 1], color=colour, marker='o',
              ls='', alpha=0.3);
 
 g = ax1.plot(apc_npa[clust.labels_ == -1, 0],
@@ -559,9 +559,9 @@ g = ax1.plot(apc_npa[clust.labels_ == -1, 0],
 title = ax1.set_title('Automatic Clustering: OPTICS')
 # plt.show()
 # DBSCAN at eps=2.
-for klass, color in zip(range(0, 4), colors):
+for klass, colour in zip(range(0, 4), colours):
     apc_npak = apc_npa[labels_200 == klass]
-    g = ax2.plot(apc_npak[:, 0], apc_npak[:, 1], color=color, marker='o',
+    g = ax2.plot(apc_npak[:, 0], apc_npak[:, 1], color=colour, marker='o',
              ls='', alpha=0.3)
 g = ax2.plot(apc_npa[labels_200 == -1, 0], apc_npa[labels_200 == -1, 1],
          'k+', alpha=0.1);
@@ -589,12 +589,12 @@ n_clusters_ = len(labels_unique);
 # %% codecell
 # Plot result
 fig = plt.figure(figsize=(12, 9));
-for k, color in zip(range(n_clusters_), colors):
+for k, colour in zip(range(n_clusters_), colours):
     my_members = labels == k
     cluster_center = cluster_centers[k]
-    g = plt.plot(apc_npa[my_members, 0], apc_npa[my_members, 1], color=color,
+    g = plt.plot(apc_npa[my_members, 0], apc_npa[my_members, 1], color=colour,
              marker='o', ls='', alpha=0.3)
-    g = plt.plot(cluster_center[0], cluster_center[1], 'o', markerfacecolor=color,
+    g = plt.plot(cluster_center[0], cluster_center[1], 'o', markerfacecolor=colour,
              markeredgecolor='k', markersize=14)
 title = plt.title('Estimated number of clusters: {}'.format(n_clusters_))
 plt.show()
