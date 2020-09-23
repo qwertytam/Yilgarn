@@ -204,7 +204,7 @@ inau_var_cln = 'Infl or Gold Price'
 inau_m_val_cln = 'MoM % Change'
 dtinau_nomppc_m.columns = [inau_var_cln, inau_m_val_cln]
 dtinau_relppc_m.columns = [inau_var_cln, inau_m_val_cln]
-# %% codecell
+
 au_var = 'Nom. or Real'
 au_nomrelppc_cln = 'MoM Gold Price % Change'
 inau_nomrelppc_m.columns = [inau_nomppc_m_cln, au_var, au_nomrelppc_cln]
@@ -227,32 +227,19 @@ inau_y_val_cln = 'YoY % Change'
 dtinau_relppc_y.columns = [inau_var_cln, inau_y_val_cln]
 # %% md
 # ## 2. Plot and Review Time Series of Monthly Inflation and Gold Price Levels
-# %% codecell
-# *Melt* the data together so we can display the charts side-by-side
-# Define column names
-in_nom_m_cln = 'Inflation Index'
-au_nom_m_cln = 'Gold Price (Nom. USD)'
-au_rel_m_cln = 'Gold Price (Real USD)'
-
-dtin_idx_m.columns = [in_nom_m_cln]
-dtau_nom_m.columns = [au_nom_m_cln]
-dtau_rel_m.columns = [au_rel_m_cln]
-
-# Join and melt the data together
-dtinau_nomrel_m = dtin_idx_m.join(dtau_nom_m, how='inner', sort=True)
-dtinau_nomrel_m = dtinau_nomrel_m.join(dtau_rel_m, how='inner', sort=True)
-dtinau_nomrel_m = pd.melt(dtinau_nomrel_m, ignore_index=False,
-                          value_vars=[in_nom_m_cln, au_nom_m_cln, au_rel_m_cln])
-
-# Copy the index to a new column for easier access with plot functions
-dtinau_nomrel_m['Date'] = dtinau_nomrel_m.index
 # %% md
 # ### Time series of the inflation index and gold prices in nominal and real terms
 # %% codecell
-# TODO: Plot the charts in the same row
-fcg = sns.FacetGrid(dtinau_nomrel_m, col='variable', col_wrap=3);
-fcg = fcg.map(sns.relplot, 'Date', 'value', kind='line');
-fcg = fcg.set_titles('{col_name}');
+# Create figure and axes
+fig, (ax0, ax1, ax2) = plt.subplots(ncols=3, figsize=(16, 5));
+# Plot chart on each axes
+ax0.plot(dtin_idx_m.index, dtin_idx_m);
+ax1.plot(dtau_nom_m.index, dtau_nom_m);
+ax2.plot(dtau_rel_m.index, dtau_rel_m);
+# Update titles
+ax0.set_title('Inflation Index');
+ax1.set_title('Gold Price (Nom. USD)');
+ax2.set_title('Gold Price (Real USD)');
 # %% md
 # **2020-09-22 Results Discussion**
 #
@@ -279,7 +266,10 @@ fcg = fcg.set_titles('{col_name}');
 # %% md
 # **Monthly nominal gold price data**
 # %% codecell
+# Set palette for use
 clrpalette = sns.color_palette(palette='husl', n_colors=2)
+# %% codecell
+# Plot and format axis labels
 fcg = sns.relplot(data=dtinau_nomppc_m, x=dtinau_nomppc_m.index,
                   y=inau_m_val_cln, hue=inau_var_cln, alpha=0.5,
                   palette=clrpalette, kind='line');
@@ -287,7 +277,7 @@ yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
 # %% md
 # **Monthly real gold price data**
 # %% codecell
-clrpalette = sns.color_palette(palette='husl', n_colors=2)
+# Plot and format axis labels
 fcg = sns.relplot(data=dtinau_relppc_m, x=dtinau_relppc_m.index,
                   y=inau_m_val_cln, hue=inau_var_cln, alpha=0.5,
                   palette=clrpalette, kind='line');
@@ -295,11 +285,17 @@ yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
 # %% md
 # **Yearly real gold price data**
 # %% codecell
-clrpalette = sns.color_palette(palette='husl', n_colors=2)
+# Plot and format axis labels
 fcg = sns.relplot(data=dtinau_relppc_y, x=dtinau_relppc_y.index,
                   y=inau_y_val_cln, hue=inau_var_cln, alpha=0.5,
                   palette=clrpalette, kind='line');
 yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
+# %% md
+# **2020-09-23 Results Discussion**
+#
+# Difficult to identify any particular trends looking at the data this way.
+# Likely easier to plot the data as scatter plots with inflation on the x-axis
+# and change in gold price on the y-axis
 # %% md
 # ## 3. Plot and Review Change in Inflation and Gold Price Levels
 # ### 3.1 Monthly Data
@@ -307,7 +303,7 @@ yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
 # Display the charts
 fcg_nomrelppc_m = yt.snslmplot(data=inau_nomrelppc_m, xcol=inau_nomppc_m_cln,
                             ycol=au_nomrelppc_cln, yidcol=au_var, degree=1,
-                            col_wrap=2)
+                            col_wrap=2, aspect=1.1)
 plt_nomrelppc_m_title = ' vs. Inflation {} to {}'
 plt_nomrelppc_m_title =  plt_nomrelppc_m_title.format(dt_stp_ppc_m.strftime("%b %Y"),
                                                       dt_edp_ppc_m.strftime("%b %Y"))
@@ -342,11 +338,12 @@ for ax in fcg_relppc_y.axes.flat:
 # %% md
 # **2020-09-22 Results Discussion** *(See Appendices for Statistics)*
 #
-# 1. A correlation coefficient of ~0.31 and a significant t-stat for the
+# 1. A correlation coefficient of approx. 0.31 and a significant t-stat for the
 # coefficient indicates that a yearly model is of better use than a monthly
-# view. However, the r-squared and adjusted r-squareds are still small (~0.1)
-# indicating that the model is missing many other factors in determining the
-# changes in gold price.
+# view. However, the r-squared and adjusted r-squareds are still small
+# (approx. 0.1) indicating that the model is missing many other factors in
+# determining the changes in gold price.
+#
 # 2. Of some interest is the group of data points in the upper right hand
 # side of the chart. Does this indicate that gold prices change significantly
 # when inflation is much higher than normal? Will explore higher order
@@ -355,14 +352,22 @@ for ax in fcg_relppc_y.axes.flat:
 # %% md
 # ### 3.3 Yearly Data with Higher Order Polynomials
 # %% codecell
-for deg in range(2, 6):
-    fcg_relppc_y = yt.snslmplot(data=dtinau_relppc_y, xcol=in_ppc_y_cln,
-                             ycol=au_relppc_y_cln, degree=deg)
-    for ax in fcg_relppc_y.axes.flat:
-        fcg_relppc_y_ax = ax.set_title('Polynomial Order: {0}'.format(deg))
+deg = 2     # Start at degree=2
+fig, axs = plt.subplots(ncols=2, nrows=2, figsize=(13.3, 10));
+for axx in axs:
+    for ax in axx:
+        fcg = sns.regplot(data=dtinau_relppc_y, x='Inflation',
+                          y=au_relppc_y_cln, order=deg, ax=ax)
+        _ = ax.set_title('Polynomial Order: {0}'.format(deg))
+        if deg != 4:
+            _ = ax.set_xlabel('')
+            _ = ax.set_ylabel('')
+        deg += 1
+# Provide some more white space to allow the plots to breathe
+plt.subplots_adjust(wspace = 0.2)
+plt.subplots_adjust(hspace = 0.2)
 # %% codecell
-# TODO: Change plotting method so that each plot is a subplot...use custom
-# function with map? ref: https://seaborn.pydata.org/generated/seaborn.FacetGrid.html
+# TODO: Custom tick label formatting
 # %% md
 # **2020-09-22 Results Discussion** *(See Appendices for Statistics)*
 #
