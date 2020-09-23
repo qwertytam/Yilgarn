@@ -132,7 +132,7 @@ in_fcd = fe.m4cpi      # FRED code 'CPIAUCSL'
 # in_fcd = fe.m4pce    # FRED code 'PCEPI'
 # Synthetic average of 'CPIAUCSL', 'CPILFESL', 'PCEPI', 'CPILFESL'
 # in_fcd = fe.m4infl
-dtin_idx_m = fe.get (fe.m4cpi)        # Returns the index, not percentage change
+dtin_idx_m = fe.get (fe.m4cpi)  # Returns the index, not percentage change
 # %% codecell
 # Gold with USD inflation removed i.e. in real USD
 # First, calculate rebased inflation index
@@ -147,7 +147,7 @@ dt_stp_lvl_m = max(fe.head(dtau_nom_m, 1).index[0],
 dt_edp_lvl_m = min(fe.tail(dtau_nom_m, 1).index[0],
                    fe.tail(dtin_idx_m, 1).index[0])
 # %% codecell
-# Calculate the real gold price
+# Calculate the real adjusted for inflation gold price
 dtau_rel_m = fe.div(dtau_nom_m.loc[dt_stp_lvl_m:dt_edp_lvl_m],
                     dtin_idx_rebased.loc[dt_stp_lvl_m:dt_edp_lvl_m])
 # %% md
@@ -175,56 +175,6 @@ dt_stp_ppc_y = max(fe.head(dtau_relppc_y, 1).index[0],
                    fe.head(dtin_ppc_y, 1).index[0])
 dt_edp_ppc_y = min(fe.tail(dtau_relppc_y, 1).index[0],
                    fe.tail(dtin_ppc_y, 1).index[0])
-# %% codecell
-# Combine inflation monthly inflation with nominal gold price data
-dtinau_nomppc_m = pd.concat([dtin_ppc_m[dt_stp_ppc_m:dt_edp_ppc_m],
-                             dtau_nomppc_m[dt_stp_ppc_m:dt_edp_ppc_m]], axis=1)
-inau_nomppc_m_cln = 'Inflation'
-au_nomppc_m_cln = 'MoM Nom. USD % Change'
-dtinau_nomppc_m.columns = [inau_nomppc_m_cln, au_nomppc_m_cln]
-# %% codecell
-# Combine inflation monthly inflation with real gold price data
-dtinau_relppc_m = pd.concat([dtin_ppc_m[dt_stp_ppc_m:dt_edp_ppc_m],
-                             dtau_relppc_m[dt_stp_ppc_m:dt_edp_ppc_m]], axis=1)
-au_relppc_m_cln = 'MoM Real USD % Change'
-dtinau_relppc_m.columns = [inau_nomppc_m_cln, au_relppc_m_cln]
-# %% codecell
-# Join and melt the data together for use later by the plotting functions
-dtinau_nomrelppc_m = dtinau_nomppc_m.join(dtinau_relppc_m.loc[:, dtinau_relppc_m.columns != inau_nomppc_m_cln],
-                                          how='inner', sort=True)
-dtinau_nomppc_m = pd.melt(dtinau_nomrelppc_m, ignore_index=False,
-                          value_vars=[inau_nomppc_m_cln, au_nomppc_m_cln])
-dtinau_relppc_m = pd.melt(dtinau_nomrelppc_m, ignore_index=False,
-                          value_vars=[inau_nomppc_m_cln, au_relppc_m_cln])
-inau_nomrelppc_m = pd.melt(dtinau_nomrelppc_m, id_vars=inau_nomppc_m_cln,
-                           value_vars=[au_nomppc_m_cln, au_relppc_m_cln])
-# %% codecell
-# Update column names
-inau_var_cln = 'Infl or Gold Price'
-inau_m_val_cln = 'MoM % Change'
-dtinau_nomppc_m.columns = [inau_var_cln, inau_m_val_cln]
-dtinau_relppc_m.columns = [inau_var_cln, inau_m_val_cln]
-
-au_var = 'Nom. or Real'
-au_nomrelppc_cln = 'MoM Gold Price % Change'
-inau_nomrelppc_m.columns = [inau_nomppc_m_cln, au_var, au_nomrelppc_cln]
-# %% codecell
-# Shorten the column names and melt data
-dtinau_nomrelppc_m = pd.melt(dtinau_nomrelppc_m, ignore_index=False,
-                             id_vars=inau_nomppc_m_cln,
-                             value_vars=[au_nomppc_m_cln, au_relppc_m_cln])
-# %% codecell
-# Combine inflation yearly inflation with real gold price data
-# Show same analysis as above
-dtinau_relppc_y = pd.concat([dtin_ppc_y[dt_stp_ppc_y:dt_edp_ppc_y],
-                             dtau_relppc_y[dt_stp_ppc_y:dt_edp_ppc_y]], axis=1)
-in_ppc_y_cln = 'Inflation'
-au_relppc_y_cln = 'YoY Real USD % Change'
-dtinau_relppc_y.columns = [in_ppc_y_cln, au_relppc_y_cln]
-dtinau_relppc_y = pd.melt(dtinau_relppc_y, ignore_index=False,
-                          value_vars=[in_ppc_y_cln, au_relppc_y_cln])
-inau_y_val_cln = 'YoY % Change'
-dtinau_relppc_y.columns = [inau_var_cln, inau_y_val_cln]
 # %% md
 # ## 2. Plot and Review Time Series of Monthly Inflation and Gold Price Levels
 # %% md
@@ -266,6 +216,20 @@ ax2.set_title('Gold Price (Real USD)');
 # %% md
 # **Monthly nominal gold price data**
 # %% codecell
+# Combine monthly inflation with nominal gold price data
+dtinau_nomppc_m = pd.concat([dtin_ppc_m[dt_stp_ppc_m:dt_edp_ppc_m],
+                             dtau_nomppc_m[dt_stp_ppc_m:dt_edp_ppc_m]], axis=1)
+in_cln = 'Inflation'
+au_nomppc_m_cln = 'MoM Nom. USD % Change'
+dtinau_nomppc_m.columns = [in_cln, au_nomppc_m_cln]
+dtinau_nomppc_m = pd.melt(dtinau_nomppc_m, ignore_index=False,
+                          value_vars=[in_cln, au_nomppc_m_cln])
+# %% codecell
+# Update column names
+inau_var_cln = 'Infl or Gold Price'
+inau_m_val_cln = 'MoM % Change'
+dtinau_nomppc_m.columns = [inau_var_cln, inau_m_val_cln]
+# %% codecell
 # Set palette for use
 clrpalette = sns.color_palette(palette='husl', n_colors=2)
 # %% codecell
@@ -277,6 +241,17 @@ yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
 # %% md
 # **Monthly real gold price data**
 # %% codecell
+# Combine monthly inflation with real gold price data
+dtinau_relppc_m = pd.concat([dtin_ppc_m[dt_stp_ppc_m:dt_edp_ppc_m],
+                             dtau_relppc_m[dt_stp_ppc_m:dt_edp_ppc_m]], axis=1)
+au_relppc_m_cln = 'MoM Real USD % Change'
+dtinau_relppc_m.columns = [in_cln, au_relppc_m_cln]
+dtinau_relppc_m = pd.melt(dtinau_relppc_m, ignore_index=False,
+                          value_vars=[in_cln, au_relppc_m_cln])
+# %% codecell
+# Update column names
+dtinau_relppc_m.columns = [inau_var_cln, inau_m_val_cln]
+# %% codecell
 # Plot and format axis labels
 fcg = sns.relplot(data=dtinau_relppc_m, x=dtinau_relppc_m.index,
                   y=inau_m_val_cln, hue=inau_var_cln, alpha=0.5,
@@ -284,6 +259,19 @@ fcg = sns.relplot(data=dtinau_relppc_m, x=dtinau_relppc_m.index,
 yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
 # %% md
 # **Yearly real gold price data**
+# %% codecell
+# Combine yearly inflation with real gold price data
+dtinau_relppc_y = pd.concat([dtin_ppc_y[dt_stp_ppc_y:dt_edp_ppc_y],
+                             dtau_relppc_y[dt_stp_ppc_y:dt_edp_ppc_y]], axis=1)
+in_ppc_y_cln = 'Inflation'
+au_relppc_y_cln = 'YoY Real USD % Change'
+dtinau_relppc_y.columns = [in_ppc_y_cln, au_relppc_y_cln]
+dtinau_relppc_y = pd.melt(dtinau_relppc_y, ignore_index=False,
+                          value_vars=[in_ppc_y_cln, au_relppc_y_cln])
+# %% codecell
+# Update column names
+inau_y_val_cln = 'YoY % Change'
+dtinau_relppc_y.columns = [inau_var_cln, inau_y_val_cln]
 # %% codecell
 # Plot and format axis labels
 fcg = sns.relplot(data=dtinau_relppc_y, x=dtinau_relppc_y.index,
@@ -300,9 +288,19 @@ yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
 # ## 3. Plot and Review Change in Inflation and Gold Price Levels
 # ### 3.1 Monthly Data
 # %% codecell
+# Add the real data onto the inflation and noimnal data
+dtinau_nomrelppc_m = dtinau_nomppc_m.append(dtinau_relppc_m.loc[dtinau_relppc_m[inau_var_cln] == au_relppc_m_cln])
+# Pivot the table back into  multiple columns then melt and rename
+inau_nomrelppc_m = dtinau_nomrelppc_m.pivot_table(values = inau_m_val_cln,
+                                                  columns = inau_var_cln,
+                                                  index = dtinau_nomrelppc_m.index)
+inau_nomrelppc_m = pd.melt(inau_nomrelppc_m, ignore_index=False, id_vars=in_cln,
+                          value_vars=[au_nomppc_m_cln, au_relppc_m_cln])
+inau_nomrelppc_m.rename(columns={'value':inau_m_val_cln}, inplace=True)
+# %% codecell
 # Display the charts
-fcg_nomrelppc_m = yt.snslmplot(data=inau_nomrelppc_m, xcol=inau_nomppc_m_cln,
-                            ycol=au_nomrelppc_cln, yidcol=au_var, degree=1,
+fcg_nomrelppc_m = yt.snslmplot(data=inau_nomrelppc_m, xcol=in_cln,
+                            ycol=inau_m_val_cln, yidcol=inau_var_cln, degree=1,
                             col_wrap=2, aspect=1.1)
 plt_nomrelppc_m_title = ' vs. Inflation {} to {}'
 plt_nomrelppc_m_title =  plt_nomrelppc_m_title.format(dt_stp_ppc_m.strftime("%b %Y"),
