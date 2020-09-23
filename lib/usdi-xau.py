@@ -221,10 +221,12 @@ dtinau_relppc_y = pd.concat([dtin_ppc_y[dt_stp_ppc_y:dt_edp_ppc_y],
 in_ppc_y_cln = 'Inflation'
 au_relppc_y_cln = 'YoY Real USD % Change'
 dtinau_relppc_y.columns = [in_ppc_y_cln, au_relppc_y_cln]
+dtinau_relppc_y = pd.melt(dtinau_relppc_y, ignore_index=False,
+                          value_vars=[in_ppc_y_cln, au_relppc_y_cln])
+inau_y_val_cln = 'YoY % Change'
+dtinau_relppc_y.columns = [inau_var_cln, inau_y_val_cln]
 # %% md
 # ## 2. Plot and Review Time Series of Monthly Inflation and Gold Price Levels
-# %% codecell
-# TODO: Plot time series charts: nominal au in USD vs inf index, real au in USD vs inf index
 # %% codecell
 # *Melt* the data together so we can display the charts side-by-side
 # Define column names
@@ -258,7 +260,9 @@ fcg = fcg.set_titles('{col_name}');
 # nominal terms that has a spike in ~1980, a second spike in ~2012, and a
 # third spike in 2020; and lastly, looking at the gold price in real
 # inflation adjusted terms, we see the three spikes again, but this time the
-# spikes each roughly have the same maximum value at ~$2,000 (in current USD)
+# spikes each roughly have the same maximum value at approx. $2,000
+# (in current USD)
+#
 # 2. Taking a step back, one claim for gold is that it acts as a hedge against
 # inflation i.e. as a nominal $100 decreasing in value due to inflation, the
 # the value of a set amount of gold stays the same in real inflation adjusted
@@ -272,11 +276,30 @@ fcg = fcg.set_titles('{col_name}');
 # there is anything interesting in the data.*
 # %% md
 # ### Time series of the change in the inflation index and gold prices in nominal and real terms
+# %% md
+# **Monthly nominal gold price data**
 # %% codecell
 clrpalette = sns.color_palette(palette='husl', n_colors=2)
-fcg = sns.relplot(data=dtinau_nomppc_m, x=dtinau_nomppc_m.index, y=inau_m_val_cln, hue=inau_var_cln, alpha=0.5, palette=clrpalette, kind='line');
+fcg = sns.relplot(data=dtinau_nomppc_m, x=dtinau_nomppc_m.index,
+                  y=inau_m_val_cln, hue=inau_var_cln, alpha=0.5,
+                  palette=clrpalette, kind='line');
 yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
-# yt.frmt_yaxislbls(fcg, '{:.0}', '{:.0%}', 1.0, 1/100)
+# %% md
+# **Monthly real gold price data**
+# %% codecell
+clrpalette = sns.color_palette(palette='husl', n_colors=2)
+fcg = sns.relplot(data=dtinau_relppc_m, x=dtinau_relppc_m.index,
+                  y=inau_m_val_cln, hue=inau_var_cln, alpha=0.5,
+                  palette=clrpalette, kind='line');
+yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
+# %% md
+# **Yearly real gold price data**
+# %% codecell
+clrpalette = sns.color_palette(palette='husl', n_colors=2)
+fcg = sns.relplot(data=dtinau_relppc_y, x=dtinau_relppc_y.index,
+                  y=inau_y_val_cln, hue=inau_var_cln, alpha=0.5,
+                  palette=clrpalette, kind='line');
+yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
 # %% md
 # ## 3. Plot and Review Change in Inflation and Gold Price Levels
 # ### 3.1 Monthly Data
@@ -288,7 +311,8 @@ fcg_nomrelppc_m = yt.snslmplot(data=inau_nomrelppc_m, xcol=inau_nomppc_m_cln,
 plt_nomrelppc_m_title = ' vs. Inflation {} to {}'
 plt_nomrelppc_m_title =  plt_nomrelppc_m_title.format(dt_stp_ppc_m.strftime("%b %Y"),
                                                       dt_edp_ppc_m.strftime("%b %Y"))
-fcg_nomrelppc_m = fcg_nomrelppc_m.set_titles(col_template="{col_name}" + plt_nomrelppc_m_title)
+fcg_nomrelppc_m = fcg_nomrelppc_m.set_titles(col_template="{col_name}" +
+                                             plt_nomrelppc_m_title)
 # %% md
 # **2020-09-22 Results Discussion** *(See Appendices for Statistics)*
 #
@@ -301,6 +325,11 @@ fcg_nomrelppc_m = fcg_nomrelppc_m.set_titles(col_template="{col_name}" + plt_nom
 # 2. For real prices, all model statistics show a weaker link as expected
 # %% md
 # ### 3.2 Yearly Data
+# %% codecell
+# Pivot the dataframe from it's current melted shape
+dtinau_relppc_y = dtinau_relppc_y.pivot_table(values=inau_y_val_cln,
+                                              index=dtinau_relppc_y.index,
+                                              columns=inau_var_cln)
 # %% codecell
 # Display the chart
 fcg_relppc_y = yt.snslmplot(data=dtinau_relppc_y, xcol=in_ppc_y_cln,
@@ -509,15 +538,25 @@ plt.show()
 # ## Appendices
 # ### A.1 Inflation vs. nominal gold prices, monthly, polynomial order = 1
 # %% codecell
-yt.dispmodel(dtinau_nomppc_m)
+# Pivot the dataframe from it's current melted shape
+dtinau_nomppc_m = dtinau_nomppc_m.pivot_table(values=inau_m_val_cln,
+                                              index=dtinau_nomppc_m.index,
+                                              columns=inau_var_cln)
+# %% codecell
+yt.dispmodel(dtinau_nomppc_m, degree=1)
 # %% md
 # ### A.2 Inflation vs. real gold prices, monthly, polynomial order = 1
+# %% codecell
+# Pivot the dataframe from it's current melted shape
+dtinau_relppc_m = dtinau_relppc_m.pivot_table(values=inau_m_val_cln,
+                                              index=dtinau_relppc_m.index,
+                                              columns=inau_var_cln)
 # %% codecell
 yt.dispmodel(dtinau_relppc_m)
 # %% md
 # ### A.3 Inflation vs. real gold prices, yearly, polynomial order = 1
 # %% codecell
-yt.dispmodel(dtinau_relppc_y)
+yt.dispmodel(dtinau_relppc_y, degree=1)
 # %% md
 # ### A.4 Inflation vs. real gold prices, yearly, polynomial order = 2
 # %% codecell

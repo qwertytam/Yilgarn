@@ -256,7 +256,6 @@ def dispmodel(data: pd.core.frame.DataFrame, degree: int=1):
 
     xcol = 0
     ycol = 1
-
     xp, yarray, modelresults, poly1d_fn = defnmodel(data, degree)
     print(" ::  FIRST variable (x):")
     print(data.iloc[:, xcol].describe(), '\n')
