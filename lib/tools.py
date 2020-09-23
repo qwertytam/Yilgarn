@@ -28,14 +28,18 @@ def getaxes(fcg):
         A list of axes objects
     """
 
+    axobjs = fcg.axes
+    # If already a subplot, then change to a list
+    if type(axobjs) == plt.Subplot:
+        axobjs = [axobjs]
     # If only one plot, then fcg.axes is a list of lists, so addressable
     # via fcg.axes[0][0]
-    if type(fcg.axes[0]) == np.ndarray:
-            axobjs = fcg.axes[0]
+    elif type(axobjs[0]) == np.ndarray:
+        axobjs = axobjs[0]
     # If multiple plots, then it is a list of objects, so addressable via
     # fcg.axes[0]
     else:
-        axobjs = fcg.axes
+        axobjs = axobjs
 
     return axobjs
 
@@ -70,9 +74,9 @@ def fmtticks(fmt, fmt0, ticks, tickscle, tickscle0):
 
     return lbls
 
-def frmtaxislbls(fcg, fmt: str='{:.0}', fmt0: str=':.0%',
-                 axis: str='x', tickscle: float=1.0, tickscle0: float=1.0):
-    """Formats x and y axis tick labels for each axis on a seaborn plot
+def frmt_xaxislbls(fcg, fmt: str='{:.0}', fmt0: str=':.0%',
+                 tickscle: float=1.0, tickscle0: float=1.0):
+    """Formats x axis tick labels for each axis on a seaborn plot
 
     Parameters
     ----------
@@ -82,8 +86,6 @@ def frmtaxislbls(fcg, fmt: str='{:.0}', fmt0: str=':.0%',
         The formatting string to use for all tick labels
     fmt0 : str, optional
         The formatting string to use for only the first tick label
-    axis : str, optional
-        Which axis to format, 'x' for horizontal, 'y' for vertical
     numscle : float, optional
         Scale factor to apply to all tick labels e.g. if format string
         is for a %, and the labels are in the range 0 to 100,
@@ -97,16 +99,42 @@ def frmtaxislbls(fcg, fmt: str='{:.0}', fmt0: str=':.0%',
     """
 
     axobjs = getaxes(fcg)
-    if axis == 'x':
-        for ax in axobjs:
-            ticks = ax.get_xticks()
-            lbls = fmtticks(fmt, fmt0, ticks, tickscle, tickscle0)
-            fcg.set_xticklabels(lbls)
-    elif axis == 'y':
-        for ax in axobjs:
-            ticks = ax.get_yticks()
-            lbls = fmtticks(fmt, fmt0, ticks, tickscle, tickscle0)
-            fcg.set_yticklabels(lbls)
+    for ax in axobjs:
+        ticks = ax.get_xticks()
+        lbls = fmtticks(fmt, fmt0, ticks, tickscle, tickscle0)
+        fcg.set_xticklabels(lbls)
+
+    return
+
+def frmt_yaxislbls(fcg, fmt: str='{:.0}', fmt0: str=':.0%',
+                 tickscle: float=1.0, tickscle0: float=1.0):
+    """Formats y axis tick labels for each axis on a seaborn plot
+
+    Parameters
+    ----------
+    fcg : seaborn FacetGrid
+        A FacetGrid that contains the axis labels for formatting
+    fmt : str, optional
+        The formatting string to use for all tick labels
+    fmt0 : str, optional
+        The formatting string to use for only the first tick label
+    numscle : float, optional
+        Scale factor to apply to all tick labels e.g. if format string
+        is for a %, and the labels are in the range 0 to 100,
+        then numscle = 0.01 to change the range to 0 to 1
+    numscle0 : float, optional
+        Scale factor to apply to only the first tick label
+
+    Returns
+    -------
+    Null
+    """
+
+    axobjs = getaxes(fcg)
+    for ax in axobjs:
+        ticks = ax.get_yticks()
+        lbls = fmtticks(fmt, fmt0, ticks, tickscle, tickscle0)
+        fcg.set_yticklabels(lbls)
 
     return
 
@@ -149,9 +177,9 @@ def snslmplot(data: pd.core.frame.DataFrame, xcol: str, ycol: str,
     fcg = sns.lmplot(data=data, x=xcol, y=ycol, col=yidcol, order=degree,
                         col_wrap=col_wrap, aspect=1.333, palette="muted")
     fcg.despine(left=True)
-    frmtaxislbls(fcg, fmt='{:.2f}', fmt0='{:.2%}', axis='x',
+    frmt_xaxislbls(fcg, fmt='{:.2f}', fmt0='{:.2%}',
                  tickscle=1, tickscle0=0.01)
-    frmtaxislbls(fcg, fmt='{:.1f}', fmt0='{:.1%}', axis='y',
+    frmt_yaxislbls(fcg, fmt='{:.1f}', fmt0='{:.1%}',
                  tickscle=1, tickscle0=0.01)
     plt.subplots_adjust(wspace = 0.1)
 

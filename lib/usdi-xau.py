@@ -113,9 +113,10 @@ import tools as yt
 # cln   column name
 # var   variable identification
 # %% md
-# ## 1. Retrieve Data, Determine Appropriate Start and End Dates for Analysis
+# ## 1. Retrieve Data, Calculate Monthly & Annual Data for Nominal & Real Gold Prices
+# %% md
+# **Get gold and inflation rates, both as monthly frequency**
 # %% codecell
-# Get gold and inflation rates, both as monthly frequency
 # Notes: fecon236 uses median to resample (instead of say mean) and also
 # replaces FRED empty data (marked with a ".") with data from previously
 # occurring period; These adjustments will drive some small differences to
@@ -125,9 +126,6 @@ import tools as yt
 dtau_nom_m = fe.monthly(fe.get('GOLDAMGBD228NLBM'))
 # Daily London PM gold fix, nominal USD, converted to monthly
 # au_nom_m = fe.get(fe.m4xau)
-# Percentage calculation for month on month i.e. frequency = 1
-freq = 1
-dtau_nomppc_m = fe.nona(fe.pcent(dtau_nom_m, freq))
 # %% codecell
 # Inflation in use
 in_fcd = fe.m4cpi      # FRED code 'CPIAUCSL'
@@ -135,7 +133,6 @@ in_fcd = fe.m4cpi      # FRED code 'CPIAUCSL'
 # Synthetic average of 'CPIAUCSL', 'CPILFESL', 'PCEPI', 'CPILFESL'
 # in_fcd = fe.m4infl
 dtin_idx_m = fe.get (fe.m4cpi)        # Returns the index, not percentage change
-dtin_ppc_m = fe.nona(fe.pcent(dtin_idx_m, freq))
 # %% codecell
 # Gold with USD inflation removed i.e. in real USD
 # First, calculate rebased inflation index
@@ -153,48 +150,139 @@ dt_edp_lvl_m = min(fe.tail(dtau_nom_m, 1).index[0],
 # Calculate the real gold price
 dtau_rel_m = fe.div(dtau_nom_m.loc[dt_stp_lvl_m:dt_edp_lvl_m],
                     dtin_idx_rebased.loc[dt_stp_lvl_m:dt_edp_lvl_m])
+# %% md
+# **Determine period on period percentage changes**
+# %% codecell
+# Percentage calculation for month on month i.e. frequency = 1
+freq = 1
+dtin_ppc_m = fe.nona(fe.pcent(dtin_idx_m, freq))
+dtau_nomppc_m = fe.nona(fe.pcent(dtau_nom_m, freq))
 dtau_relppc_m = fe.nona(fe.pcent(dtau_rel_m, freq))
 # %% codecell
-# Find the first and last overlapping dates for the two data series where we
-# are using month on month percentage change
-dt_stp_ppc_m = max(fe.head(dtau_relppc_m, 1).index[0], fe.head(dtin_ppc_m, 1).index[0])
-dt_edp_ppc_m = min(fe.tail(dtau_relppc_m, 1).index[0], fe.tail(dtin_ppc_m, 1).index[0])
+# Find the first and last overlapping dates the monthly change data
+dt_stp_ppc_m = max(fe.head(dtau_relppc_m, 1).index[0],
+                   fe.head(dtin_ppc_m, 1).index[0])
+dt_edp_ppc_m = min(fe.tail(dtau_relppc_m, 1).index[0],
+                   fe.tail(dtin_ppc_m, 1).index[0])
+# %% codecell
+# Change percentage calculation to every 12 months for year on year changes
+freq = 12
+dtau_relppc_y = fe.nona(fe.pcent(dtau_rel_m, freq))
+dtin_ppc_y = fe.nona(fe.pcent(dtin_idx_m, freq))
+# %% codecell
+# Find the first and last overlapping dates the yearly change data
+dt_stp_ppc_y = max(fe.head(dtau_relppc_y, 1).index[0],
+                   fe.head(dtin_ppc_y, 1).index[0])
+dt_edp_ppc_y = min(fe.tail(dtau_relppc_y, 1).index[0],
+                   fe.tail(dtin_ppc_y, 1).index[0])
+# %% codecell
+# Combine inflation monthly inflation with nominal gold price data
+dtinau_nomppc_m = pd.concat([dtin_ppc_m[dt_stp_ppc_m:dt_edp_ppc_m],
+                             dtau_nomppc_m[dt_stp_ppc_m:dt_edp_ppc_m]], axis=1)
+inau_nomppc_m_cln = 'Inflation'
+au_nomppc_m_cln = 'MoM Nom. USD % Change'
+dtinau_nomppc_m.columns = [inau_nomppc_m_cln, au_nomppc_m_cln]
+# %% codecell
+# Combine inflation monthly inflation with real gold price data
+dtinau_relppc_m = pd.concat([dtin_ppc_m[dt_stp_ppc_m:dt_edp_ppc_m],
+                             dtau_relppc_m[dt_stp_ppc_m:dt_edp_ppc_m]], axis=1)
+au_relppc_m_cln = 'MoM Real USD % Change'
+dtinau_relppc_m.columns = [inau_nomppc_m_cln, au_relppc_m_cln]
+# %% codecell
+# Join and melt the data together for use later by the plotting functions
+dtinau_nomrelppc_m = dtinau_nomppc_m.join(dtinau_relppc_m.loc[:, dtinau_relppc_m.columns != inau_nomppc_m_cln],
+                                          how='inner', sort=True)
+dtinau_nomppc_m = pd.melt(dtinau_nomrelppc_m, ignore_index=False,
+                          value_vars=[inau_nomppc_m_cln, au_nomppc_m_cln])
+dtinau_relppc_m = pd.melt(dtinau_nomrelppc_m, ignore_index=False,
+                          value_vars=[inau_nomppc_m_cln, au_relppc_m_cln])
+inau_nomrelppc_m = pd.melt(dtinau_nomrelppc_m, id_vars=inau_nomppc_m_cln,
+                           value_vars=[au_nomppc_m_cln, au_relppc_m_cln])
+# %% codecell
+# Update column names
+inau_var_cln = 'Infl or Gold Price'
+inau_m_val_cln = 'MoM % Change'
+dtinau_nomppc_m.columns = [inau_var_cln, inau_m_val_cln]
+dtinau_relppc_m.columns = [inau_var_cln, inau_m_val_cln]
+# %% codecell
+au_var = 'Nom. or Real'
+au_nomrelppc_cln = 'MoM Gold Price % Change'
+inau_nomrelppc_m.columns = [inau_nomppc_m_cln, au_var, au_nomrelppc_cln]
+# %% codecell
+# Shorten the column names and melt data
+dtinau_nomrelppc_m = pd.melt(dtinau_nomrelppc_m, ignore_index=False,
+                             id_vars=inau_nomppc_m_cln,
+                             value_vars=[au_nomppc_m_cln, au_relppc_m_cln])
+# %% codecell
+# Combine inflation yearly inflation with real gold price data
+# Show same analysis as above
+dtinau_relppc_y = pd.concat([dtin_ppc_y[dt_stp_ppc_y:dt_edp_ppc_y],
+                             dtau_relppc_y[dt_stp_ppc_y:dt_edp_ppc_y]], axis=1)
+in_ppc_y_cln = 'Inflation'
+au_relppc_y_cln = 'YoY Real USD % Change'
+dtinau_relppc_y.columns = [in_ppc_y_cln, au_relppc_y_cln]
 # %% md
 # ## 2. Plot and Review Time Series of Monthly Inflation and Gold Price Levels
 # %% codecell
-
 # TODO: Plot time series charts: nominal au in USD vs inf index, real au in USD vs inf index
 # %% codecell
-# TODO: Plot time series charts: change in: nominal au vs inf, real au vs inf
+# *Melt* the data together so we can display the charts side-by-side
+# Define column names
+in_nom_m_cln = 'Inflation Index'
+au_nom_m_cln = 'Gold Price (Nom. USD)'
+au_rel_m_cln = 'Gold Price (Real USD)'
+
+dtin_idx_m.columns = [in_nom_m_cln]
+dtau_nom_m.columns = [au_nom_m_cln]
+dtau_rel_m.columns = [au_rel_m_cln]
+
+# Join and melt the data together
+dtinau_nomrel_m = dtin_idx_m.join(dtau_nom_m, how='inner', sort=True)
+dtinau_nomrel_m = dtinau_nomrel_m.join(dtau_rel_m, how='inner', sort=True)
+dtinau_nomrel_m = pd.melt(dtinau_nomrel_m, ignore_index=False,
+                          value_vars=[in_nom_m_cln, au_nom_m_cln, au_rel_m_cln])
+
+# Copy the index to a new column for easier access with plot functions
+dtinau_nomrel_m['Date'] = dtinau_nomrel_m.index
+# %% md
+# ### Time series of the inflation index and gold prices in nominal and real terms
+# %% codecell
+# TODO: Plot the charts in the same row
+fcg = sns.FacetGrid(dtinau_nomrel_m, col='variable', col_wrap=3);
+fcg = fcg.map(sns.relplot, 'Date', 'value', kind='line');
+fcg = fcg.set_titles('{col_name}');
+# %% md
+# **2020-09-22 Results Discussion**
+#
+# 1. So we see a gradually increasing inflation index, a gold price in
+# nominal terms that has a spike in ~1980, a second spike in ~2012, and a
+# third spike in 2020; and lastly, looking at the gold price in real
+# inflation adjusted terms, we see the three spikes again, but this time the
+# spikes each roughly have the same maximum value at ~$2,000 (in current USD)
+# 2. Taking a step back, one claim for gold is that it acts as a hedge against
+# inflation i.e. as a nominal $100 decreasing in value due to inflation, the
+# the value of a set amount of gold stays the same in real inflation adjusted
+# currency terms. This relationship may hold out over very long time frames
+# (i.e. centuries), but in the shorter term, the obvious volatility in the
+# nominal and real prices indicates that there are many other factors at play
+# in determining the gold price, and holding gold as purely an inflation hedge
+# would be a poor investment decision.
+#
+# *Nonetheless, time to look at some analysis in greater detail to see if
+# there is anything interesting in the data.*
+# %% md
+# ### Time series of the change in the inflation index and gold prices in nominal and real terms
+# %% codecell
+clrpalette = sns.color_palette(palette='husl', n_colors=2)
+fcg = sns.relplot(data=dtinau_nomppc_m, x=dtinau_nomppc_m.index, y=inau_m_val_cln, hue=inau_var_cln, alpha=0.5, palette=clrpalette, kind='line');
+yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
+# yt.frmt_yaxislbls(fcg, '{:.0}', '{:.0%}', 1.0, 1/100)
 # %% md
 # ## 3. Plot and Review Change in Inflation and Gold Price Levels
 # ### 3.1 Monthly Data
 # %% codecell
-# Nominal USD data
-dtinau_nomppc_m = pd.concat([dtin_ppc_m[dt_stp_ppc_m:dt_edp_ppc_m],
-                             dtau_nomppc_m[dt_stp_ppc_m:dt_edp_ppc_m]], axis=1)
-inau_nomppc_m_cln = 'Monthly Change in Inflation'
-au_nomppc_m_cln = 'Monthly Change in Gold Price (Nom. USD)'
-dtinau_nomppc_m.columns = [inau_nomppc_m_cln, au_nomppc_m_cln]
-# %% codecell
-# Real USD data
-dtinau_relppc_m = pd.concat([dtin_ppc_m[dt_stp_ppc_m:dt_edp_ppc_m],
-                             dtau_relppc_m[dt_stp_ppc_m:dt_edp_ppc_m]], axis=1)
-au_relppc_m_cln = 'Monthly Change in Gold Price (Real USD)'
-dtinau_relppc_m.columns = [inau_nomppc_m_cln, au_relppc_m_cln]
-# %% codecell
-# *Melt* the data together so we can display the charts side-by-side
-dtinau_nomrelppc_m = dtinau_nomppc_m.join(dtinau_relppc_m.loc[:, dtinau_relppc_m.columns != inau_nomppc_m_cln],
-                                          how='inner', sort=True)
-dtinau_nomrelppc_m = pd.melt(dtinau_nomrelppc_m,
-                             id_vars=inau_nomppc_m_cln,
-                             value_vars=[au_nomppc_m_cln, au_relppc_m_cln])
-au_var = 'Nominal or Real'
-au_nomrelppc_cln = 'Monthly Change in Gold Price'
-dtinau_nomrelppc_m.columns = [inau_nomppc_m_cln, au_var, au_nomrelppc_cln]
-# %% codecell
 # Display the charts
-fcg_nomrelppc_m = yt.snslmplot(data=dtinau_nomrelppc_m, xcol=inau_nomppc_m_cln,
+fcg_nomrelppc_m = yt.snslmplot(data=inau_nomrelppc_m, xcol=inau_nomppc_m_cln,
                             ycol=au_nomrelppc_cln, yidcol=au_var, degree=1,
                             col_wrap=2)
 plt_nomrelppc_m_title = ' vs. Inflation {} to {}'
@@ -202,7 +290,7 @@ plt_nomrelppc_m_title =  plt_nomrelppc_m_title.format(dt_stp_ppc_m.strftime("%b 
                                                       dt_edp_ppc_m.strftime("%b %Y"))
 fcg_nomrelppc_m = fcg_nomrelppc_m.set_titles(col_template="{col_name}" + plt_nomrelppc_m_title)
 # %% md
-# **2020-09-22 Results Discussion** *(See Appendicies for Statistics)*
+# **2020-09-22 Results Discussion** *(See Appendices for Statistics)*
 #
 # 1. For nominal prices, the low correlation coefficient (~0.15), poor ability
 # of the model to explain movements (low R-squared and adjusted R-squareds of
@@ -214,24 +302,6 @@ fcg_nomrelppc_m = fcg_nomrelppc_m.set_titles(col_template="{col_name}" + plt_nom
 # %% md
 # ### 3.2 Yearly Data
 # %% codecell
-# Change percentage calculation to every 12 months
-freq = 12
-dtau_relppc_y = fe.nona(fe.pcent(dtau_rel_m, freq))
-dtin_ppc_y = fe.nona(fe.pcent(dtin_idx_m, freq))
-# %% codecell
-# Find the first and last overlapping dates for the two data series
-dt_stp_ppc_y = max(fe.head(dtau_relppc_y, 1).index[0],
-                   fe.head(dtin_ppc_y, 1).index[0])
-dt_edp_ppc_y = min(fe.tail(dtau_relppc_y, 1).index[0],
-                   fe.tail(dtin_ppc_y, 1).index[0])
-# %% codecell
-# Show same analysis as above
-dtinau_relppc_y = pd.concat([dtin_ppc_y[dt_stp_ppc_y:dt_edp_ppc_y],
-                             dtau_relppc_y[dt_stp_ppc_y:dt_edp_ppc_y]], axis=1)
-in_ppc_y_cln = 'Yearly Inflation'
-au_relppc_y_cln = 'Yearly Change in Gold Price (Real USD)'
-dtinau_relppc_y.columns = [in_ppc_y_cln, au_relppc_y_cln]
-# %% codecell
 # Display the chart
 fcg_relppc_y = yt.snslmplot(data=dtinau_relppc_y, xcol=in_ppc_y_cln,
                          ycol=au_relppc_y_cln, degree=1)
@@ -241,12 +311,12 @@ plt_relppc_y_title =  plt_relppc_y_title.format(dt_stp_ppc_y.strftime("%b %Y"),
 for ax in fcg_relppc_y.axes.flat:
     fcg_relppc_y_ax = ax.set_title(plt_relppc_y_title)
 # %% md
-# **2020-09-22 Results Discussion** *(See Appendicies for Statistics)*
+# **2020-09-22 Results Discussion** *(See Appendices for Statistics)*
 #
 # 1. A correlation coefficient of ~0.31 and a significant t-stat for the
 # coefficient indicates that a yearly model is of better use than a monthly
 # view. However, the r-squared and adjusted r-squareds are still small (~0.1)
-# indicating that the model is missing many other factors in determing the
+# indicating that the model is missing many other factors in determining the
 # changes in gold price.
 # 2. Of some interest is the group of data points in the upper right hand
 # side of the chart. Does this indicate that gold prices change significantly
