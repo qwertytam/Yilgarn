@@ -25,7 +25,6 @@
 # - Written using Python 3.8.5, Atom 1.51, Hydrogen 2.14.4
 #
 # ### General To Do List:
-# - Update result analysis
 # - Understand cluster analysis in greater detail
 # - Review peer work
 # %% md
@@ -62,7 +61,7 @@ import datetime as dt
 # Will use sklearn and statsmodels for model development and testing
 from sklearn import mixture
 from sklearn.cluster import OPTICS, cluster_optics_dbscan
-from sklearn.preprocessing import PolynomialFeatures
+# from sklearn.preprocessing import PolynomialFeatures
 from sklearn.cluster import MeanShift, estimate_bandwidth, MiniBatchKMeans, KMeans
 from sklearn.metrics.pairwise import pairwise_distances_argmin
 # from sklearn.datasets import make_blobs
@@ -84,8 +83,12 @@ from matplotlib.colors import LogNorm   ### CAN WE GET RID OF THIS WITH SEABORN
 import seaborn as sns
 sns.set_theme()
 sns.set_style("whitegrid")
-# %% md
-# ### Define Custom Functions
+# %% codecell
+# Custom module containing a series of helper functions for processing
+# and displaying the data
+import sys
+sys.path.append('../lib/')  # Append module directory so Jupyter can find it
+import tools as yt
 # %% codecell
 # ### Variable Naming Schema:
 # {series}_{type}_{period, optional}_{descriptor, optional}
@@ -109,236 +112,11 @@ sns.set_style("whitegrid")
 # {descriptor}
 # cln   column name
 # var   variable identification
-# %% codecell
-def getaxes(fcg):
-    """Returns list of matpotlib axes objects
-
-    Parameters
-    ----------
-    fcg : seaborn FaceGrid
-        A FaceGrid object that contains the axes
-
-    Returns
-    -------
-    [matplotlib.axes._subplots.AxesSubplot]
-        A list of axes objects
-    """
-
-    # If only one plot, then fcg.axes is a list of lists, so addressable
-    # via fcg.axes[0][0]
-    if type(fcg.axes[0]) == np.ndarray:
-            axobjs = fcg.axes[0]
-    # If multiple plots, then it is a list of objects, so addressable via
-    # fcg.axes[0]
-    else:
-        axobjs = fcg.axes
-
-    return axobjs
-# %% codecell
-def fmtticks(fmt, fmt0, ticks, tickscle, tickscle0):
-    """Formats x and y axis tick labels for a seaborn plot
-
-    Parameters
-    ----------
-    fmt : str
-        The formatting string to use for all tick labels
-    fmt0 : str
-        The formatting string to use for only the first tick label
-    ticks : numpy.ndarray
-        1D array of tick labels to format
-    tickscle  : float, optional
-        Scale factor to apply to all tick labels e.g. if format string
-        is for a %, and the labels are in the range 0 to 100,
-        then numscle = 0.01 to change the range to 0 to 1
-    tickscle0 : float, optional
-        Scale factor to apply to only the first tick label
-
-    Returns
-    -------
-    list of str
-        List of formatted tick labels in string format
-    """
-
-    tick0 = ticks[0]
-    lbls = [fmt.format(tick * tickscle) for tick in ticks]
-    lbl0 = fmt0.format(tick0 * tickscle0)
-    lbls[0] = lbl0
-
-    return lbls
-# %% codecell
-def frmtaxislbls(fcg, fmt: str='{:.0}', fmt0: str=':.0%',
-                 axis: str='x', tickscle: float=1.0, tickscle0: float=1.0):
-    """Formats x and y axis tick labels for each axis on a seaborn plot
-
-    Parameters
-    ----------
-    fcg : seaborn FacetGrid
-        A FacetGrid that contains the axis labels for formatting
-    fmt : str, optional
-        The formatting string to use for all tick labels
-    fmt0 : str, optional
-        The formatting string to use for only the first tick label
-    axis : str, optional
-        Which axis to format, 'x' for horizontal, 'y' for vertical
-    numscle : float, optional
-        Scale factor to apply to all tick labels e.g. if format string
-        is for a %, and the labels are in the range 0 to 100,
-        then numscle = 0.01 to change the range to 0 to 1
-    numscle0 : float, optional
-        Scale factor to apply to only the first tick label
-
-    Returns
-    -------
-    Null
-    """
-
-    axobjs = getaxes(fcg)
-    if axis == 'x':
-        for ax in axobjs:
-            ticks = ax.get_xticks()
-            lbls = fmtticks(fmt, fmt0, ticks, tickscle, tickscle0)
-            fcg.set_xticklabels(lbls)
-    elif axis == 'y':
-        for ax in axobjs:
-            ticks = ax.get_yticks()
-            lbls = fmtticks(fmt, fmt0, ticks, tickscle, tickscle0)
-            fcg.set_yticklabels(lbls)
-
-    return
-# %% codecell
-def snslmplot(data: pd.core.frame.DataFrame, xcol: str, ycol: str,
-              yidcol: str=None, degree: int=1, col_wrap: int=None,
-              title: str=None, axistitles: str=None):
-    """Draws plot from data input with polynomial of order degree
-
-    Parameters
-    ----------
-    data : panda DataFrame
-        Panda melted data frame containing the data, m rows by 3 columns
-        The three columns are identified by the xcol, idcol, datacol function
-        parameters - see below
-    xcol : str
-        The name of the DataFrame column that contains data for the independent
-        variable i.e. x
-    ycol : str
-        The name of the DataFrame colum that contains the y data
-    yidcol : str, optional
-        The name of the DataFrame column that contains data identifying the y
-        data to select. For example, if the data has been melted from two
-        variables 'y1' and 'y2', this column would contain either 'y1' or 'y2'
-        to identify which rows pertain to the relevant y variable
-    degree : int, optional
-        The polynomial degree definition e.g. 2 for a quadratic polynomial
-    col_wrap : int, optional
-        The number of facets to display per row i.e. wrap on
-    title : str, optional
-        Title to include on the chart; can also be a list of strings
-    axistitles : str, optional
-        Title for each of the titles, x-axis first, y-axis second
-
-    Returns
-    -------
-    FacetGrid
-        The FacetGrid generated by seaborn
-    """
-
-    fcg = sns.lmplot(data=data, x=xcol, y=ycol, col=yidcol, order=degree,
-                        col_wrap=col_wrap, aspect=1.333, palette="muted")
-    fcg.despine(left=True)
-    frmtaxislbls(fcg, fmt='{:.2f}', fmt0='{:.2%}', axis='x',
-                 tickscle=1, tickscle0=0.01)
-    frmtaxislbls(fcg, fmt='{:.1f}', fmt0='{:.1%}', axis='y',
-                 tickscle=1, tickscle0=0.01)
-    plt.subplots_adjust(wspace = 0.1)
-
-    return fcg
-# %% codecell
-def defnmodel(data: pd.core.frame.DataFrame, degree: int=1):
-    """Defines a polynomial model for data x and y of order degree using
-    ordinary least squares regression based
-
-    Parameters
-    ----------
-    data : panda DataFrame
-        Panda data frame containing the data, m rows by 2 columns with the
-        first column containing the independent variable (i.e. x) and the second
-        column containing the dependent variable (i.e. y)
-    degree : int, optional
-        The polynomial degree definition e.g. 1 for linear, 2 for a
-        quadractic polynomial
-
-    Returns
-    -------
-    xp : numpy array
-        Array of degree columns containing the polynomial features e.g. for a 2
-        degree polynomial, features are [1, a, b, a^2, ab, b^2]
-    yarray : numpy array
-        Array of dependent variable data
-    modelresults : sm ols model fit results
-        Ordinary least squares regression model produced by statsmodels with
-        results
-    poly1d_fn : numpy poly1d
-        the polynomial definition e.g. x**2 + 2*x + 3
-    """
-
-    xcol = 0
-    ycol = 1
-    polyFeatures = PolynomialFeatures(degree) # Define the polynomial
-    # Reshape data from 1 by n to n by 1
-    xarray = np.array(data.iloc[:, xcol])
-    xarray = xarray[:, np.newaxis]
-
-    # Calculate polynomials for x
-    xp = polyFeatures.fit_transform(xarray)
-
-    # Reshape y from 1 by n to n by 1
-    yarray = np.array(data.iloc[:, ycol])
-    yarray = yarray[:, np.newaxis]
-
-    # Calculate the model and predictions
-    modelresults = sm.OLS(yarray, xp).fit()
-    coef = modelresults.params.tolist()    # Model coefficients
-    coef.reverse()                  # Reverse as poly1d takes in decline order
-    poly1d_fn = np.poly1d(coef)     # Create function from coefficients
-
-    return xp, yarray, modelresults, poly1d_fn
-# %% codecell
-def dispmodel(data: pd.core.frame.DataFrame, degree: int=1):
-    """Displays summary statistics and regression results for polynomial model
-    or order 'degree'
-
-    Parameters
-    ----------
-    data : panda DataFrame
-        Panda data frame containing the data, m rows by 2 columns with the
-        first column containing the independent variable (i.e. x) and the second
-        column containing the dependent variable (i.e. y)
-    degree : int, optional
-        The polynomial degree definition e.g. 1 for linear, 2 for a
-        quadratic polynomial
-
-    Returns
-    -------
-    Null
-    """
-
-    xcol = 0
-    ycol = 1
-
-    xp, yarray, modelresults, poly1d_fn = defnmodel(data, degree)
-    print(" ::  FIRST variable (x):")
-    print(data.iloc[:, xcol].describe(), '\n')
-    print(" ::  SECOND variable (y):")
-    print(data.iloc[:, ycol].describe(), '\n')
-    print(" :: Pearson Correlation Coefficient:")
-    print(data.corr(), '\n\n')
-    print(modelresults.summary())
-
-    return
 # %% md
-# ## 1. Retrieve Data, Determine Appropriate Start and End Dates for Analysis
+# ## 1. Retrieve Data, Calculate Monthly & Annual Data for Nominal & Real Gold Prices
+# %% md
+# **Get gold and inflation rates, both as monthly frequency**
 # %% codecell
-# Get gold and inflation rates, both as monthly frequency
 # Notes: fecon236 uses median to resample (instead of say mean) and also
 # replaces FRED empty data (marked with a ".") with data from previously
 # occurring period; These adjustments will drive some small differences to
@@ -348,9 +126,6 @@ def dispmodel(data: pd.core.frame.DataFrame, degree: int=1):
 dtau_nom_m = fe.monthly(fe.get('GOLDAMGBD228NLBM'))
 # Daily London PM gold fix, nominal USD, converted to monthly
 # au_nom_m = fe.get(fe.m4xau)
-# Percentage calculation for month on month i.e. frequency = 1
-freq = 1
-dtau_nomppc_m = fe.nona(fe.pcent(dtau_nom_m, freq))
 # %% codecell
 # Inflation in use
 in_fcd = fe.m4cpi      # FRED code 'CPIAUCSL'
@@ -358,7 +133,6 @@ in_fcd = fe.m4cpi      # FRED code 'CPIAUCSL'
 # Synthetic average of 'CPIAUCSL', 'CPILFESL', 'PCEPI', 'CPILFESL'
 # in_fcd = fe.m4infl
 dtin_idx_m = fe.get (fe.m4cpi)        # Returns the index, not percentage change
-dtin_ppc_m = fe.nona(fe.pcent(dtin_idx_m, freq))
 # %% codecell
 # Gold with USD inflation removed i.e. in real USD
 # First, calculate rebased inflation index
@@ -376,56 +150,171 @@ dt_edp_lvl_m = min(fe.tail(dtau_nom_m, 1).index[0],
 # Calculate the real gold price
 dtau_rel_m = fe.div(dtau_nom_m.loc[dt_stp_lvl_m:dt_edp_lvl_m],
                     dtin_idx_rebased.loc[dt_stp_lvl_m:dt_edp_lvl_m])
+# %% md
+# **Determine period on period percentage changes**
+# %% codecell
+# Percentage calculation for month on month i.e. frequency = 1
+freq = 1
+dtin_ppc_m = fe.nona(fe.pcent(dtin_idx_m, freq))
+dtau_nomppc_m = fe.nona(fe.pcent(dtau_nom_m, freq))
 dtau_relppc_m = fe.nona(fe.pcent(dtau_rel_m, freq))
 # %% codecell
-# Find the first and last overlapping dates for the two data series where we
-# are using month on month percentage change
-dt_stp_ppc_m = max(fe.head(dtau_relppc_m, 1).index[0], fe.head(dtin_ppc_m, 1).index[0])
-dt_edp_ppc_m = min(fe.tail(dtau_relppc_m, 1).index[0], fe.tail(dtin_ppc_m, 1).index[0])
+# Find the first and last overlapping dates the monthly change data
+dt_stp_ppc_m = max(fe.head(dtau_relppc_m, 1).index[0],
+                   fe.head(dtin_ppc_m, 1).index[0])
+dt_edp_ppc_m = min(fe.tail(dtau_relppc_m, 1).index[0],
+                   fe.tail(dtin_ppc_m, 1).index[0])
+# %% codecell
+# Change percentage calculation to every 12 months for year on year changes
+freq = 12
+dtau_relppc_y = fe.nona(fe.pcent(dtau_rel_m, freq))
+dtin_ppc_y = fe.nona(fe.pcent(dtin_idx_m, freq))
+# %% codecell
+# Find the first and last overlapping dates the yearly change data
+dt_stp_ppc_y = max(fe.head(dtau_relppc_y, 1).index[0],
+                   fe.head(dtin_ppc_y, 1).index[0])
+dt_edp_ppc_y = min(fe.tail(dtau_relppc_y, 1).index[0],
+                   fe.tail(dtin_ppc_y, 1).index[0])
+# %% codecell
+# Combine inflation monthly inflation with nominal gold price data
+dtinau_nomppc_m = pd.concat([dtin_ppc_m[dt_stp_ppc_m:dt_edp_ppc_m],
+                             dtau_nomppc_m[dt_stp_ppc_m:dt_edp_ppc_m]], axis=1)
+inau_nomppc_m_cln = 'Inflation'
+au_nomppc_m_cln = 'MoM Nom. USD % Change'
+dtinau_nomppc_m.columns = [inau_nomppc_m_cln, au_nomppc_m_cln]
+# %% codecell
+# Combine inflation monthly inflation with real gold price data
+dtinau_relppc_m = pd.concat([dtin_ppc_m[dt_stp_ppc_m:dt_edp_ppc_m],
+                             dtau_relppc_m[dt_stp_ppc_m:dt_edp_ppc_m]], axis=1)
+au_relppc_m_cln = 'MoM Real USD % Change'
+dtinau_relppc_m.columns = [inau_nomppc_m_cln, au_relppc_m_cln]
+# %% codecell
+# Join and melt the data together for use later by the plotting functions
+dtinau_nomrelppc_m = dtinau_nomppc_m.join(dtinau_relppc_m.loc[:, dtinau_relppc_m.columns != inau_nomppc_m_cln],
+                                          how='inner', sort=True)
+dtinau_nomppc_m = pd.melt(dtinau_nomrelppc_m, ignore_index=False,
+                          value_vars=[inau_nomppc_m_cln, au_nomppc_m_cln])
+dtinau_relppc_m = pd.melt(dtinau_nomrelppc_m, ignore_index=False,
+                          value_vars=[inau_nomppc_m_cln, au_relppc_m_cln])
+inau_nomrelppc_m = pd.melt(dtinau_nomrelppc_m, id_vars=inau_nomppc_m_cln,
+                           value_vars=[au_nomppc_m_cln, au_relppc_m_cln])
+# %% codecell
+# Update column names
+inau_var_cln = 'Infl or Gold Price'
+inau_m_val_cln = 'MoM % Change'
+dtinau_nomppc_m.columns = [inau_var_cln, inau_m_val_cln]
+dtinau_relppc_m.columns = [inau_var_cln, inau_m_val_cln]
+# %% codecell
+au_var = 'Nom. or Real'
+au_nomrelppc_cln = 'MoM Gold Price % Change'
+inau_nomrelppc_m.columns = [inau_nomppc_m_cln, au_var, au_nomrelppc_cln]
+# %% codecell
+# Shorten the column names and melt data
+dtinau_nomrelppc_m = pd.melt(dtinau_nomrelppc_m, ignore_index=False,
+                             id_vars=inau_nomppc_m_cln,
+                             value_vars=[au_nomppc_m_cln, au_relppc_m_cln])
+# %% codecell
+# Combine inflation yearly inflation with real gold price data
+# Show same analysis as above
+dtinau_relppc_y = pd.concat([dtin_ppc_y[dt_stp_ppc_y:dt_edp_ppc_y],
+                             dtau_relppc_y[dt_stp_ppc_y:dt_edp_ppc_y]], axis=1)
+in_ppc_y_cln = 'Inflation'
+au_relppc_y_cln = 'YoY Real USD % Change'
+dtinau_relppc_y.columns = [in_ppc_y_cln, au_relppc_y_cln]
+dtinau_relppc_y = pd.melt(dtinau_relppc_y, ignore_index=False,
+                          value_vars=[in_ppc_y_cln, au_relppc_y_cln])
+inau_y_val_cln = 'YoY % Change'
+dtinau_relppc_y.columns = [inau_var_cln, inau_y_val_cln]
 # %% md
 # ## 2. Plot and Review Time Series of Monthly Inflation and Gold Price Levels
 # %% codecell
+# *Melt* the data together so we can display the charts side-by-side
+# Define column names
+in_nom_m_cln = 'Inflation Index'
+au_nom_m_cln = 'Gold Price (Nom. USD)'
+au_rel_m_cln = 'Gold Price (Real USD)'
 
-# TODO: Plot time series charts: nominal au in USD vs inf index, real au in USD vs inf index
+dtin_idx_m.columns = [in_nom_m_cln]
+dtau_nom_m.columns = [au_nom_m_cln]
+dtau_rel_m.columns = [au_rel_m_cln]
+
+# Join and melt the data together
+dtinau_nomrel_m = dtin_idx_m.join(dtau_nom_m, how='inner', sort=True)
+dtinau_nomrel_m = dtinau_nomrel_m.join(dtau_rel_m, how='inner', sort=True)
+dtinau_nomrel_m = pd.melt(dtinau_nomrel_m, ignore_index=False,
+                          value_vars=[in_nom_m_cln, au_nom_m_cln, au_rel_m_cln])
+
+# Copy the index to a new column for easier access with plot functions
+dtinau_nomrel_m['Date'] = dtinau_nomrel_m.index
+# %% md
+# ### Time series of the inflation index and gold prices in nominal and real terms
 # %% codecell
-# TODO: Plot time series charts: change in: nominal au vs inf, real au vs inf
+# TODO: Plot the charts in the same row
+fcg = sns.FacetGrid(dtinau_nomrel_m, col='variable', col_wrap=3);
+fcg = fcg.map(sns.relplot, 'Date', 'value', kind='line');
+fcg = fcg.set_titles('{col_name}');
+# %% md
+# **2020-09-22 Results Discussion**
+#
+# 1. So we see a gradually increasing inflation index, a gold price in
+# nominal terms that has a spike in ~1980, a second spike in ~2012, and a
+# third spike in 2020; and lastly, looking at the gold price in real
+# inflation adjusted terms, we see the three spikes again, but this time the
+# spikes each roughly have the same maximum value at approx. $2,000
+# (in current USD)
+#
+# 2. Taking a step back, one claim for gold is that it acts as a hedge against
+# inflation i.e. as a nominal $100 decreasing in value due to inflation, the
+# the value of a set amount of gold stays the same in real inflation adjusted
+# currency terms. This relationship may hold out over very long time frames
+# (i.e. centuries), but in the shorter term, the obvious volatility in the
+# nominal and real prices indicates that there are many other factors at play
+# in determining the gold price, and holding gold as purely an inflation hedge
+# would be a poor investment decision.
+#
+# *Nonetheless, time to look at some analysis in greater detail to see if
+# there is anything interesting in the data.*
+# %% md
+# ### Time series of the change in the inflation index and gold prices in nominal and real terms
+# %% md
+# **Monthly nominal gold price data**
+# %% codecell
+clrpalette = sns.color_palette(palette='husl', n_colors=2)
+fcg = sns.relplot(data=dtinau_nomppc_m, x=dtinau_nomppc_m.index,
+                  y=inau_m_val_cln, hue=inau_var_cln, alpha=0.5,
+                  palette=clrpalette, kind='line');
+yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
+# %% md
+# **Monthly real gold price data**
+# %% codecell
+clrpalette = sns.color_palette(palette='husl', n_colors=2)
+fcg = sns.relplot(data=dtinau_relppc_m, x=dtinau_relppc_m.index,
+                  y=inau_m_val_cln, hue=inau_var_cln, alpha=0.5,
+                  palette=clrpalette, kind='line');
+yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
+# %% md
+# **Yearly real gold price data**
+# %% codecell
+clrpalette = sns.color_palette(palette='husl', n_colors=2)
+fcg = sns.relplot(data=dtinau_relppc_y, x=dtinau_relppc_y.index,
+                  y=inau_y_val_cln, hue=inau_var_cln, alpha=0.5,
+                  palette=clrpalette, kind='line');
+yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
 # %% md
 # ## 3. Plot and Review Change in Inflation and Gold Price Levels
 # ### 3.1 Monthly Data
 # %% codecell
-# Nominal USD data
-dtinau_nomppc_m = pd.concat([dtin_ppc_m[dt_stp_ppc_m:dt_edp_ppc_m],
-                             dtau_nomppc_m[dt_stp_ppc_m:dt_edp_ppc_m]], axis=1)
-inau_nomppc_m_cln = 'Monthly Change in Inflation'
-au_nomppc_m_cln = 'Monthly Change in Gold Price (Nom. USD)'
-dtinau_nomppc_m.columns = [inau_nomppc_m_cln, au_nomppc_m_cln]
-# %% codecell
-# Real USD data
-dtinau_relppc_m = pd.concat([dtin_ppc_m[dt_stp_ppc_m:dt_edp_ppc_m],
-                             dtau_relppc_m[dt_stp_ppc_m:dt_edp_ppc_m]], axis=1)
-au_relppc_m_cln = 'Monthly Change in Gold Price (Real USD)'
-dtinau_relppc_m.columns = [inau_nomppc_m_cln, au_relppc_m_cln]
-# %% codecell
-# *Melt* the data together so we can display the charts side-by-side
-dtinau_nomrelppc_m = dtinau_nomppc_m.join(dtinau_relppc_m.loc[:, dtinau_relppc_m.columns != inau_nomppc_m_cln],
-                                          how='inner', sort=True)
-dtinau_nomrelppc_m = pd.melt(dtinau_nomrelppc_m,
-                             id_vars=inau_nomppc_m_cln,
-                             value_vars=[au_nomppc_m_cln, au_relppc_m_cln])
-au_var = 'Nominal or Real'
-au_nomrelppc_cln = 'Monthly Change in Gold Price'
-dtinau_nomrelppc_m.columns = [inau_nomppc_m_cln, au_var, au_nomrelppc_cln]
-# %% codecell
 # Display the charts
-fcg_nomrelppc_m = snslmplot(data=dtinau_nomrelppc_m, xcol=inau_nomppc_m_cln,
+fcg_nomrelppc_m = yt.snslmplot(data=inau_nomrelppc_m, xcol=inau_nomppc_m_cln,
                             ycol=au_nomrelppc_cln, yidcol=au_var, degree=1,
                             col_wrap=2)
 plt_nomrelppc_m_title = ' vs. Inflation {} to {}'
 plt_nomrelppc_m_title =  plt_nomrelppc_m_title.format(dt_stp_ppc_m.strftime("%b %Y"),
                                                       dt_edp_ppc_m.strftime("%b %Y"))
-fcg_nomrelppc_m = fcg_nomrelppc_m.set_titles(col_template="{col_name}" + plt_nomrelppc_m_title)
+fcg_nomrelppc_m = fcg_nomrelppc_m.set_titles(col_template="{col_name}" +
+                                             plt_nomrelppc_m_title)
 # %% md
-# **2020-09-22 Results Discussion** *(See Appendicies for Statistics)*
+# **2020-09-22 Results Discussion** *(See Appendices for Statistics)*
 #
 # 1. For nominal prices, the low correlation coefficient (~0.15), poor ability
 # of the model to explain movements (low R-squared and adjusted R-squareds of
@@ -437,26 +326,13 @@ fcg_nomrelppc_m = fcg_nomrelppc_m.set_titles(col_template="{col_name}" + plt_nom
 # %% md
 # ### 3.2 Yearly Data
 # %% codecell
-# Change percentage calculation to every 12 months
-freq = 12
-dtau_relppc_y = fe.nona(fe.pcent(dtau_rel_m, freq))
-dtin_ppc_y = fe.nona(fe.pcent(dtin_idx_m, freq))
-# %% codecell
-# Find the first and last overlapping dates for the two data series
-dt_stp_ppc_y = max(fe.head(dtau_relppc_y, 1).index[0],
-                   fe.head(dtin_ppc_y, 1).index[0])
-dt_edp_ppc_y = min(fe.tail(dtau_relppc_y, 1).index[0],
-                   fe.tail(dtin_ppc_y, 1).index[0])
-# %% codecell
-# Show same analysis as above
-dtinau_relppc_y = pd.concat([dtin_ppc_y[dt_stp_ppc_y:dt_edp_ppc_y],
-                             dtau_relppc_y[dt_stp_ppc_y:dt_edp_ppc_y]], axis=1)
-in_ppc_y_cln = 'Yearly Inflation'
-au_relppc_y_cln = 'Yearly Change in Gold Price (Real USD)'
-dtinau_relppc_y.columns = [in_ppc_y_cln, au_relppc_y_cln]
+# Pivot the dataframe from it's current melted shape
+dtinau_relppc_y = dtinau_relppc_y.pivot_table(values=inau_y_val_cln,
+                                              index=dtinau_relppc_y.index,
+                                              columns=inau_var_cln)
 # %% codecell
 # Display the chart
-fcg_relppc_y = snslmplot(data=dtinau_relppc_y, xcol=in_ppc_y_cln,
+fcg_relppc_y = yt.snslmplot(data=dtinau_relppc_y, xcol=in_ppc_y_cln,
                          ycol=au_relppc_y_cln, degree=1)
 plt_relppc_y_title = 'Yearly Change in Gold Price (Real USD) vs. Inflation {} to {}'
 plt_relppc_y_title =  plt_relppc_y_title.format(dt_stp_ppc_y.strftime("%b %Y"),
@@ -464,12 +340,12 @@ plt_relppc_y_title =  plt_relppc_y_title.format(dt_stp_ppc_y.strftime("%b %Y"),
 for ax in fcg_relppc_y.axes.flat:
     fcg_relppc_y_ax = ax.set_title(plt_relppc_y_title)
 # %% md
-# **2020-09-22 Results Discussion** *(See Appendicies for Statistics)*
+# **2020-09-22 Results Discussion** *(See Appendices for Statistics)*
 #
 # 1. A correlation coefficient of ~0.31 and a significant t-stat for the
 # coefficient indicates that a yearly model is of better use than a monthly
 # view. However, the r-squared and adjusted r-squareds are still small (~0.1)
-# indicating that the model is missing many other factors in determing the
+# indicating that the model is missing many other factors in determining the
 # changes in gold price.
 # 2. Of some interest is the group of data points in the upper right hand
 # side of the chart. Does this indicate that gold prices change significantly
@@ -480,7 +356,7 @@ for ax in fcg_relppc_y.axes.flat:
 # ### 3.3 Yearly Data with Higher Order Polynomials
 # %% codecell
 for deg in range(2, 6):
-    fcg_relppc_y = snslmplot(data=dtinau_relppc_y, xcol=in_ppc_y_cln,
+    fcg_relppc_y = yt.snslmplot(data=dtinau_relppc_y, xcol=in_ppc_y_cln,
                              ycol=au_relppc_y_cln, degree=deg)
     for ax in fcg_relppc_y.axes.flat:
         fcg_relppc_y_ax = ax.set_title('Polynomial Order: {0}'.format(deg))
@@ -506,8 +382,8 @@ for deg in range(2, 6):
 # really do anything during low to moderate inflation (perhaps up to ~8%
 # just by eyeballing the data), but really takes off when inflation is high.
 #
-# So, in 2020, are we in the foreseeable future likely to have high inflation
-# reminiscent of the 1970's? Unlikely in my view.
+# **So, in 2020, are we in the foreseeable future likely to have high inflation
+# reminiscent of the 1970's?** Unlikely in my view.
 #
 # Model statistics detail: The r-squared and adjusted r-squared's move higher
 # to values of ~0.21 for `order=2`, to ~0.28 for `order=[3,4,5]`. The
@@ -662,30 +538,40 @@ plt.show()
 # ## Appendices
 # ### A.1 Inflation vs. nominal gold prices, monthly, polynomial order = 1
 # %% codecell
-dispmodel(dtinau_nomppc_m)
+# Pivot the dataframe from it's current melted shape
+dtinau_nomppc_m = dtinau_nomppc_m.pivot_table(values=inau_m_val_cln,
+                                              index=dtinau_nomppc_m.index,
+                                              columns=inau_var_cln)
+# %% codecell
+yt.dispmodel(dtinau_nomppc_m, degree=1)
 # %% md
 # ### A.2 Inflation vs. real gold prices, monthly, polynomial order = 1
 # %% codecell
-dispmodel(dtinau_relppc_m)
+# Pivot the dataframe from it's current melted shape
+dtinau_relppc_m = dtinau_relppc_m.pivot_table(values=inau_m_val_cln,
+                                              index=dtinau_relppc_m.index,
+                                              columns=inau_var_cln)
+# %% codecell
+yt.dispmodel(dtinau_relppc_m)
 # %% md
 # ### A.3 Inflation vs. real gold prices, yearly, polynomial order = 1
 # %% codecell
-dispmodel(dtinau_relppc_y)
+yt.dispmodel(dtinau_relppc_y, degree=1)
 # %% md
 # ### A.4 Inflation vs. real gold prices, yearly, polynomial order = 2
 # %% codecell
-dispmodel(dtinau_relppc_y, degree=2)
+yt.dispmodel(dtinau_relppc_y, degree=2)
 # %% md
 # ### A.5 Inflation vs. real gold prices, yearly, polynomial order = 3
 # %% codecell
-dispmodel(dtinau_relppc_y, degree=3)
+yt.dispmodel(dtinau_relppc_y, degree=3)
 # %% md
 # ### A.6 Inflation vs. real gold prices, yearly, polynomial order = 4
 # %% codecell
-dispmodel(dtinau_relppc_y, degree=4)
+yt.dispmodel(dtinau_relppc_y, degree=4)
 # %% md
 # ### A.7 Inflation vs. real gold prices, yearly, polynomial order = 5
 # %% codecell
-dispmodel(dtinau_relppc_y, degree=5)
+yt.dispmodel(dtinau_relppc_y, degree=5)
 # %% md
 # ### End Of File
