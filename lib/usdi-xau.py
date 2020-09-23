@@ -402,62 +402,86 @@ plt.subplots_adjust(hspace = 0.2)
 inau_relppc_y = np.column_stack((dtin_ppc_y['Y'][dt_stp_ppc_y:dt_edp_ppc_y], dtau_relppc_y['Y'][dt_stp_ppc_y:dt_edp_ppc_y]))
 # %% md
 # ### 4.1 Expectation-Maximization
-# %% codecell
-# fit a GMM
-n_cpts = 3
-gmmmdl = mixture.GaussianMixture(n_components=n_cpts, covariance_type='full')
-gmmmdl.fit(inau_relppc_y)
-# display predicted scores by the model as a contour plot
-xln = np.linspace(math.floor(min(inau_relppc_y[:, 0])),
-                  math.ceil(max(inau_relppc_y[:, 0])))
-yln = np.linspace(math.floor(min(inau_relppc_y[:, 1])),
-                  math.ceil(max(inau_relppc_y[:, 1])))
-Xln, Yln = np.meshgrid(xln, yln)
-XX = np.array([Xln.ravel(), Yln.ravel()]).T
-Zln = -gmmmdl.score_samples(XX)
-Zln = Zln.reshape(Xln.shape);
-# %% codecell
-# Create and display the plot
-fig = plt.figure(figsize=(12, 9))
-CS = plt.contour(Xln, Yln, Zln, norm=LogNorm(vmin=1, vmax=100.0),
-                 levels=np.logspace(0, 2, 25));
-CB = plt.colorbar(CS, shrink=0.8);
-fcg = plt.scatter(inau_relppc_y[:, 0], inau_relppc_y[:, 1], .8);
-plt.show()
-# TODO: Label axes
-# TODO: Add title
-# TODO: Do for n_cpts = [2, 3, 4, 6, 10]
-# TODO: For multiple n_cpts, draw as subplots
 # %% md
-# 2020-09-15: For `n_cpts = 2`, GMM essentially places a high likelihood
-# around the cluster of data centred on [3, 0] and doesn't pay much attention
-# to the rest. Not until `n_cpts ~ 10` does GMM lend any importance to
-# the data points in the upper left i.e. where this is a high change in
-# inflation and gold prices
+# The Expectation-Maximization Algorithm, or EM algorithm for short, is an
+# approach for maximum likelihood estimation in the presence of latent
+# variables.
+# %% codecell
+# Set up variables to determine the min and max plotting contour colours
+# Start and stop take log values so a value of 2 is 100 (assuming base 10)
+# Default choice
+# start = 0
+# stop = 2
+# Based on knowing limits of Zln
+# np.amin(Zln)
+# np.amax(Zln)
+start = math.log(10, 10)
+stop = math.log(70, 10)
+# %% codecell
+n_cpts = [1, 2, 3, 4, 6, 10]
+n_cptsi = 0
+fig, axs = plt.subplots(ncols=3, nrows=2, figsize=(15, 10));
+for axx in axs:
+    for ax in axx:
+        n_cpt = n_cpts[n_cptsi]
+        # fit a GMM
+        gmmmdl = mixture.GaussianMixture(n_components=n_cpt, covariance_type='full');
+        _ = gmmmdl.fit(inau_relppc_y);
+        # display predicted scores by the model as a contour plot
+        xln = np.linspace(math.floor(min(inau_relppc_y[:, 0])),
+                          math.ceil(max(inau_relppc_y[:, 0])))
+        yln = np.linspace(math.floor(min(inau_relppc_y[:, 1])),
+                          math.ceil(max(inau_relppc_y[:, 1])))
+        Xln, Yln = np.meshgrid(xln, yln)
+        XX = np.array([Xln.ravel(), Yln.ravel()]).T
+        Zln = -gmmmdl.score_samples(XX)
+        Zln = Zln.reshape(Xln.shape);
+        # Create and display the plot
+        CS = ax.contour(Xln, Yln, Zln, norm=LogNorm(vmin=1, vmax=100.0),
+                         levels=np.logspace(start=0.3, stop=1.845, num=20, base=10));
+        fcg = ax.scatter(inau_relppc_y[:, 0], inau_relppc_y[:, 1], .8);
+        _ = ax.set_title('No. Components: {0}'.format(n_cpt));
+        if deg == 10:
+            CB = plt.colorbar(CS, shrink=0.8);
+        n_cptsi += 1
+plt.show()
+# Provide some more white space to allow the plots to breathe
+# %% codecell
+# TODO: Label axes
+# %% md
+# 2020-09-23: For 2 components EM essentially places a high likelihood
+# around the cluster of data centred on [2.5, 0]. As we increase the number of
+# components, EM starts to place more weight on the high-inflation,
+# high-positive change in gold prices. However, no significant 'peak' forms
+# in the upper-left, to me indicating that this method does not see much value
+# in bisecting the data.
 # %% md
 # ### 4.2 K-Means
 # %% codecell
 # Compute the clustering with k-means
-n_clusters = 4
-ppc_y_kmeans = KMeans(init='k-means++',
-                    n_clusters=n_clusters, n_init=10).fit(inau_relppc_y)
-kmeans_cluster_centers = ppc_y_kmeans.cluster_centers_
-kmeans_lbls = pairwise_distances_argmin(inau_relppc_y, kmeans_cluster_centers)
-# %% codecell
-# Plot the results
 colours = sns.color_palette('muted')
-fcg = plt.figure(figsize=(12, 9))
-for k, col in zip(range(n_clusters), colours):
-    my_members = kmeans_lbls == k
-    cluster_center = kmeans_cluster_centers[k]
-    fcg = plt.plot(inau_relppc_y[my_members, 0], inau_relppc_y[my_members, 1],
-                   'w', markerfacecolor=col, marker='.')
-    fcg = plt.plot(cluster_center[0], cluster_center[1], 'o',
-                   markerfacecolor=col, markeredgecolor='k', markersize=6)
+n_clusters = [2, 3, 4, 5]
+n_clustersi = 0
+fig, axs = plt.subplots(ncols=2, nrows=2, figsize=(13, 10));
+for axx in axs:
+    for ax in axx:
+        nc = n_clusters[n_clustersi]
+        ppc_y_kmeans = KMeans(init='k-means++',
+                              n_clusters=nc, n_init=10).fit(inau_relppc_y)
+        kmeans_cluster_centers = ppc_y_kmeans.cluster_centers_
+        kmeans_lbls = pairwise_distances_argmin(inau_relppc_y, kmeans_cluster_centers)
+        # Plot the results
+        for k, col in zip(range(nc), colours):
+            my_members = kmeans_lbls == k
+            cluster_center = kmeans_cluster_centers[k]
+            fcg = ax.plot(inau_relppc_y[my_members, 0], inau_relppc_y[my_members, 1],
+                           'w', markerfacecolor=col, marker='.')
+            fcg = ax.plot(cluster_center[0], cluster_center[1], 'o',
+                           markerfacecolor=col, markeredgecolor='k', markersize=6)
+
+        _ = ax.set_title('No. of Clusters: {0}'.format(nc));
+        n_clustersi += 1
 # TODO: Label axes
-# TODO: Add title
-# TODO: Do for n_clusters = [2, 3, 4, 5]
-# TODO: For multiple n_clusters, draw as subplots
 # %% md
 # 2020-09-15: For `n_clusters = 2`, k-means splits the data essentially along
 # horizontal axis, separating when the gold price change into two halves of
