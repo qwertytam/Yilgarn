@@ -140,7 +140,7 @@ def frmt_yaxislbls(fcg, fmt: str='{:.0}', fmt0: str=':.0%',
 
 def snslmplot(data: pd.core.frame.DataFrame, xcol: str, ycol: str,
               yidcol: str=None, degree: int=1, col_wrap: int=None,
-              title: str=None, axistitles: str=None):
+              title: str=None, axistitles: str=None, aspect=1.333):
     """Draws plot from data input with polynomial of order degree
 
     Parameters
@@ -167,6 +167,8 @@ def snslmplot(data: pd.core.frame.DataFrame, xcol: str, ycol: str,
         Title to include on the chart; can also be a list of strings
     axistitles : str, optional
         Title for each of the titles, x-axis first, y-axis second
+    aspect : float, optional
+        Aspect ratio for the plot
 
     Returns
     -------
@@ -175,7 +177,7 @@ def snslmplot(data: pd.core.frame.DataFrame, xcol: str, ycol: str,
     """
 
     fcg = sns.lmplot(data=data, x=xcol, y=ycol, col=yidcol, order=degree,
-                        col_wrap=col_wrap, aspect=1.333, palette="muted")
+                        col_wrap=col_wrap, aspect=aspect, palette="muted")
     fcg.despine(left=True)
     frmt_xaxislbls(fcg, fmt='{:.2f}', fmt0='{:.2%}',
                  tickscle=1, tickscle0=0.01)
