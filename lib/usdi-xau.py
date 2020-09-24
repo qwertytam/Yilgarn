@@ -4,8 +4,7 @@
 # inflation.
 #
 # ### Inspirations
-# - [The FRED® Blog: Is gold a good hedge against inflation?]
-# (https://fredblog.stlouisfed.org/2019/03/is-gold-a-good-hedge-against-inflation/)
+# - [The FRED® Blog: Is gold a good hedge against inflation?](https://fredblog.stlouisfed.org/2019/03/is-gold-a-good-hedge-against-inflation/)
 #
 # ### Definitions
 # - Gold: The ICE Benchmark Administration Limited (IBA), Gold Fixing Price in
@@ -283,7 +282,7 @@ yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
 #
 # Difficult to identify any particular trends looking at the data this way.
 # Likely easier to plot the data as scatter plots with inflation on the x-axis
-# and change in gold price on the y-axis
+# and change in gold price on the y-axis.
 # %% md
 # ## 3. Plot and Review Change in Inflation and Gold Price Levels
 # ### 3.1 Monthly Data
@@ -315,8 +314,8 @@ fcg_nomrelppc_m = fcg_nomrelppc_m.set_titles(col_template="{col_name}" +
 # ~0.02) indicate that inflation explains only a small amount of the movement
 # in nominal gold prices. The t-stat and p-values are erroneously high as
 # changes in inflation will be included in the nominal price. To correct for
-# this we need to remove inflation and use real prices
-# 2. For real prices, all model statistics show a weaker link as expected
+# this we need to remove inflation and use real prices.
+# 2. For real prices, all model statistics show a weaker link as expected.
 # %% md
 # ### 3.2 Yearly Data
 # %% codecell
@@ -418,38 +417,46 @@ inau_relppc_y = np.column_stack((dtin_ppc_y['Y'][dt_stp_ppc_y:dt_edp_ppc_y], dta
 start = math.log(10, 10)
 stop = math.log(70, 10)
 # %% codecell
-n_cpts = [1, 2, 3, 4, 6, 10]
-n_cptsi = 0
-fig, axs = plt.subplots(ncols=3, nrows=2, figsize=(15, 10));
-for axx in axs:
-    for ax in axx:
-        n_cpt = n_cpts[n_cptsi]
-        # fit a GMM
-        gmmmdl = mixture.GaussianMixture(n_components=n_cpt, covariance_type='full');
-        _ = gmmmdl.fit(inau_relppc_y);
-        # display predicted scores by the model as a contour plot
-        xln = np.linspace(math.floor(min(inau_relppc_y[:, 0])),
-                          math.ceil(max(inau_relppc_y[:, 0])))
-        yln = np.linspace(math.floor(min(inau_relppc_y[:, 1])),
-                          math.ceil(max(inau_relppc_y[:, 1])))
-        Xln, Yln = np.meshgrid(xln, yln)
-        XX = np.array([Xln.ravel(), Yln.ravel()]).T
-        Zln = -gmmmdl.score_samples(XX)
-        Zln = Zln.reshape(Xln.shape);
-        # Create and display the plot
-        CS = ax.contour(Xln, Yln, Zln, norm=LogNorm(vmin=1, vmax=100.0),
-                         levels=np.logspace(start=0.3, stop=1.845, num=20, base=10));
-        fcg = ax.scatter(inau_relppc_y[:, 0], inau_relppc_y[:, 1], .8);
-        _ = ax.set_title('No. Components: {0}'.format(n_cpt));
-        if deg == 10:
-            CB = plt.colorbar(CS, shrink=0.8);
-        n_cptsi += 1
-plt.show()
+# Define number of components to use
+n_cpts = [1, 2, 3, 4, 6, 8, 10]
+# Set up the figure for the subplots
+colours = sns.color_palette('muted')
+ncols = 2
+nrows = math.ceil(len(n_cpts) / ncols)
+fit = plt.figure(figsize=(15, 25))
+# Run through each number of component to use
+for axi in range(1, len(n_cpts) + 1):
+    n_cpt = n_cpts[axi - 1]
+    ax = plt.subplot(nrows, ncols, axi)
+    # fit a GMM
+    gmmmdl = mixture.GaussianMixture(n_components=n_cpt, covariance_type='full');
+    _ = gmmmdl.fit(inau_relppc_y);
+    # display predicted scores by the model as a contour plot
+    xln = np.linspace(math.floor(min(inau_relppc_y[:, 0])),
+                      math.ceil(max(inau_relppc_y[:, 0])))
+    yln = np.linspace(math.floor(min(inau_relppc_y[:, 1])),
+                      math.ceil(max(inau_relppc_y[:, 1])))
+    Xln, Yln = np.meshgrid(xln, yln)
+    XX = np.array([Xln.ravel(), Yln.ravel()]).T
+    Zln = -gmmmdl.score_samples(XX)
+    Zln = Zln.reshape(Xln.shape);
+    # Create and display the plot
+    CS = ax.contour(Xln, Yln, Zln, norm=LogNorm(vmin=1, vmax=100.0),
+                     levels=np.logspace(start=0.3, stop=1.845, num=20, base=10));
+    fcg = ax.scatter(inau_relppc_y[:, 0], inau_relppc_y[:, 1], .8);
+    _ = ax.set_title('No. Components: {0}'.format(n_cpt));
+    if deg == 10:
+        CB = plt.colorbar(CS, shrink=0.8);
 # Provide some more white space to allow the plots to breathe
+plt.subplots_adjust(wspace = 0.1)
+plt.subplots_adjust(hspace = 0.25)
 # %% codecell
 # TODO: Label axes
+# TODO: Custom tick label formatting
 # %% md
-# 2020-09-23: For 2 components EM essentially places a high likelihood
+# **2020-09-22 Results Discussion**
+#
+# For 2 components EM essentially places a high likelihood
 # around the cluster of data centred on [2.5, 0]. As we increase the number of
 # components, EM starts to place more weight on the high-inflation,
 # high-positive change in gold prices. However, no significant 'peak' forms
@@ -459,105 +466,196 @@ plt.show()
 # ### 4.2 K-Means
 # %% codecell
 # Compute the clustering with k-means
-colours = sns.color_palette('muted')
+# Define number of clusters to use
 n_clusters = [2, 3, 4, 5]
-n_clustersi = 0
-fig, axs = plt.subplots(ncols=2, nrows=2, figsize=(13, 10));
-for axx in axs:
-    for ax in axx:
-        nc = n_clusters[n_clustersi]
-        ppc_y_kmeans = KMeans(init='k-means++',
-                              n_clusters=nc, n_init=10).fit(inau_relppc_y)
-        kmeans_cluster_centers = ppc_y_kmeans.cluster_centers_
-        kmeans_lbls = pairwise_distances_argmin(inau_relppc_y, kmeans_cluster_centers)
-        # Plot the results
-        for k, col in zip(range(nc), colours):
-            my_members = kmeans_lbls == k
-            cluster_center = kmeans_cluster_centers[k]
-            fcg = ax.plot(inau_relppc_y[my_members, 0], inau_relppc_y[my_members, 1],
-                           'w', markerfacecolor=col, marker='.')
-            fcg = ax.plot(cluster_center[0], cluster_center[1], 'o',
-                           markerfacecolor=col, markeredgecolor='k', markersize=6)
+# Set up the figure for the subplots
+colours = sns.color_palette('muted')
+ncols = 2
+nrows = math.ceil(len(n_clusters) / ncols)
+fit = plt.figure(figsize=(13, 10))
+# Run through each number of clusters to use
+for axi in range(1, len(n_clusters) + 1):
+    nci = n_clusters[axi - 1]
+    ax = plt.subplot(nrows, ncols, axi)
+    # Fit the model
+    ppc_y_kmeans = KMeans(init='k-means++',
+                          n_clusters=nci, n_init=10).fit(inau_relppc_y)
+    kmeans_cluster_centers = ppc_y_kmeans.cluster_centers_
+    kmeans_lbls = pairwise_distances_argmin(inau_relppc_y, kmeans_cluster_centers)
+    # Plot the results
+    for k, col in zip(range(nci), colours):
+        my_members = kmeans_lbls == k
+        cluster_center = kmeans_cluster_centers[k]
+        fcg = ax.plot(inau_relppc_y[my_members, 0], inau_relppc_y[my_members, 1],
+                       'w', markerfacecolor=col, marker='.')
+        fcg = ax.plot(cluster_center[0], cluster_center[1], 'o',
+                       markerfacecolor=col, markeredgecolor='k', markersize=6)
 
-        _ = ax.set_title('No. of Clusters: {0}'.format(nc));
-        n_clustersi += 1
+    _ = ax.set_title('No. of Clusters: {0}'.format(nci));
+# Provide some more white space to allow the plots to breathe
+plt.subplots_adjust(wspace = 0.1)
+plt.subplots_adjust(hspace = 0.25)
+# %% codecell
 # TODO: Label axes
+# TODO: Custom tick label formatting
 # %% md
-# 2020-09-15: For `n_clusters = 2`, k-means splits the data essentially along
+# **2020-09-15 Results Discussion**
+#
+# For `n_clusters = 2`, k-means splits the data essentially along
 # horizontal axis, separating when the gold price change into two halves of
 # when it is positive vs. negative. For `n_clusters = 3`, the data is further
 # dissected along a horizontal line for gold change at approximately 50%.
 # A similar trend occurs for `n_clusters = 4` with a further horizontal
 # bisection. In summary, it is not obvious that horizontal clustering provides
-# any insight into the gold vs. inflation relationship
+# any insight into the gold vs. inflation relationship.
 # %% md
-# ### 4.3 OPTICS
+# ### 4.3 OPTICS and DBSCAN
 # %% codecell
-# Define fit parameters
-clust = OPTICS(min_samples=5, xi=0.05, min_cluster_size=0.05)
+# Define the fit parameters to use
+clust = OPTICS(min_samples=20, xi=0.01, min_cluster_size=0.01)
 # Run the fit
-clust.fit(inau_relppc_y)
-eps = 2.0
-labels_200 = cluster_optics_dbscan(reachability=clust.reachability_,
-                                   core_distances=clust.core_distances_,
-                                   ordering=clust.ordering_, eps=eps);
+_ = clust.fit(inau_relppc_y)
+space = np.arange(len(inau_relppc_y))
+reachability = clust.reachability_[clust.ordering_]
+labels = clust.labels_[clust.ordering_]
 # %% codecell
-# Create and display the plot using OPTICS
-fit = plt.figure(figsize=(12, 9))
-ax1 = plt.subplot(121)
-ax2 = plt.subplot(122)
-for klass, colour in zip(range(0, 5), colours):
-    inau_relppc_y_k = inau_relppc_y[clust.labels_ == klass]
-    fcg = ax1.plot(inau_relppc_y_k[:, 0], inau_relppc_y_k[:, 1], color=colour,
-                 marker='o', ls='', alpha=0.3);
-fcg = ax1.plot(inau_relppc_y[clust.labels_ == -1, 0],
-         inau_relppc_y[clust.labels_ == -1, 1], 'k+', alpha=0.1);
-title = ax1.set_title('Automatic Clustering: OPTICS')
-# plt.show()
-# DBSCAN at eps=2.
-for klass, colour in zip(range(0, 4), colours):
-    inau_relppc_y_k = inau_relppc_y[labels_200 == klass]
-    fcg = ax2.plot(inau_relppc_y_k[:, 0], inau_relppc_y_k[:, 1], color=colour,
-                   marker='o', ls='', alpha=0.3)
-fcg = ax2.plot(inau_relppc_y[labels_200 == -1, 0],
-               inau_relppc_y[labels_200 == -1, 1], 'k+', alpha=0.1);
-title = 'Clustering at {0:.2f} epsilon cut: DBSCAN'.format(eps)
-fcg = ax2.set_title(title)
-plt.show()
-# TODO: Label axes
-# TODO: Do for eps = [0.5, 2]
-# TODO: To explore and understand significance of changing min_samples=5,
-# xi=0.05, min_cluster_size=0.05
+# Define the labels
+eps = [0.1, 0.5, 1.0, 1.5, 2.0]
+epslabels = []
+for e in eps:
+    _ = epslabels.append(cluster_optics_dbscan(reachability=clust.reachability_,
+                                               core_distances=clust.core_distances_,
+                                               ordering=clust.ordering_,
+                                               eps=e));
+# %% codecell
+# Set up the figure for the reachability plot
+colours = sns.color_palette('muted')
+fig, ax = plt.subplots(figsize=(12, 8))
+# Reachability plot
+for klass, colour in zip(range(0, 10), colours):
+    Xk = space[labels == klass]
+    Rk = reachability[labels == klass]
+    _ = ax.plot(Xk, Rk, ls='-', marker='.', color=colour, alpha=1)
+_ = ax.plot(space[labels == -1], reachability[labels == -1], ls='', marker='.', color='k', alpha=0.2)
+_ = ax.plot(space, np.full_like(space, 0.5, dtype=float), ls='-.', marker='', color='k', alpha=0.5)
+_ = ax.plot(space, np.full_like(space, 1.0, dtype=float), ls='-', marker='', color='k', alpha=0.5)
+_ = ax.plot(space, np.full_like(space, 2.0, dtype=float), ls='--', marker='', color='k', alpha=0.5)
+_ = ax.set_ylim(0, 3)
+_ = ax.set_ylabel('Reachability (epsilon distance)')
+_ = ax.set_title('Reachability Plot')
 # %% md
-# 2020-09-15: So similar to previous methods, clustering appears as horizontal
-# bisections
+# **2020-09-24 Results Discussion**
+#
+# So with `OPTICS(min_samples=20, xi=0.01, min_cluster_size=0.01)` it appears
+# that an `epsilon=1.5` may yield good results. Increasing `min_samples`
+# increases epsilon (roughly the distance to other points within the same
+# cluster) which broadens the criteria too far in my opinion. To reduce
+# epsilon we can reduce the sample size. However, I think that reducing the
+# sample size below approx. 20 reduces it too far loosing any relevance.
+#
+# Looking at different values for `xi=0.01, min_cluster_size=0.01` alter the
+# location and cutoff for the reachability clusters (correct terminology?).
+# Values of `0.01` seem to be the best compromise for this dataset.
+#
+# **For reference from the Wikipedia pages on [DBSCAN](https://en.wikipedia.org/wiki/DBSCAN)
+# and  [OPTICS](https://en.wikipedia.org/wiki/OPTICS_algorithm)**
+#
+# Good values of ε are where this plot shows an elbow; if epsilon is chosen
+# much too small, a large part of the data will not be clustered; whereas for a
+# too high value of epsilon, clusters will merge and the majority of objects
+# will be in the same cluster. In general, small values of epsilon are
+# preferable,and as a rule of thumb only a small fraction of points should be
+# within this distance of each other.
+#
+# As a general rule for `min_samples` estimation, more points are generally
+# required for noisy data and for data that contains many duplicates (as a rule
+# of thumb, `min_samples` can be derived from the number of dimensions in the
+# data set). As we've seen in earlier analysis, and as expected for typical
+# financial trading data, there is a lot of noise in this dataset, hence
+# `min_samples` should be large.
+#
+# Note, that there are different algorithms that try to detect the valleys by
+# steepness, knee detection, or local maxima.
+# %% codecell
+# Set up the figure for the subplots
+ncols = 2
+nrows = math.ceil((len(eps) + 1)/ ncols)
+fit = plt.figure(figsize=(13, 16))
+# Run through each combination of the fit parameters
+for axi in range(1, len(eps) + 2):
+    ax = plt.subplot(nrows, ncols, axi)
+    # Create and display the plot using OPTICS
+    if axi == 1:
+        for klass, colour in zip(range(0, 5), colours):
+            inau_relppc_y_k = inau_relppc_y[clust.labels_ == klass]
+            fcg = ax.plot(inau_relppc_y_k[:, 0], inau_relppc_y_k[:, 1], color=colour,
+                         marker='o', ls='', alpha=0.3);
+        fcg = ax.plot(inau_relppc_y[clust.labels_ == -1, 0],
+                 inau_relppc_y[clust.labels_ == -1, 1], 'k+', alpha=0.1);
+        title = ax.set_title('Automatic Clustering: OPTICS')
+    # Create and display the plot using DBSCAN at eps
+    else:
+        epslabel = epslabels[axi - 2]
+        for klass, colour in zip(range(0, 4), colours):
+            inau_relppc_y_k = inau_relppc_y[epslabel == klass]
+            fcg = ax.plot(inau_relppc_y_k[:, 0], inau_relppc_y_k[:, 1], color=colour,
+                           marker='o', ls='', alpha=0.3)
+        fcg = ax.plot(inau_relppc_y[epslabel == -1, 0],
+                       inau_relppc_y[epslabel == -1, 1], 'k+', alpha=0.1);
+        title = 'Clustering at {0:.2f} epsilon cut: DBSCAN'.format(eps[axi - 2])
+        fcg = ax.set_title(title)
+# Provide some more white space to allow the plots to breathe
+plt.subplots_adjust(wspace = 0.1)
+plt.subplots_adjust(hspace = 0.25)
+# %% codecell
+# TODO: Label axes
+# TODO: Custom tick label formatting
+# %% md
+# **2020-09-24 Results Discussion**
+#
+# The `DBSCAN` seems to slign with `OPTICS` at for an epsilon of approx. 1.5.
+#
+# More broadly the methods appear to split the data horizontally similar to
+# the EM and K-Means methods.
 # %% md
 # ### 4.4 Mean-Shift (MS)
 # %% codecell
-# Calculate the MS
-bandwidth = estimate_bandwidth(inau_relppc_y, quantile=0.25)
-apc_ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
-apc_ms.fit(inau_relppc_y)
-lbls = apc_ms.labels_
-cluster_centers = apc_ms.cluster_centers_
-lbls_unique = np.unique(lbls)
-n_clusters_ = len(lbls_unique);
+# Define the quantiles to use
+quants = [0.1, 0.15, 0.2, 0.25, 0.3, 0.4]
 # %% codecell
-# Plot result
-fig = plt.figure(figsize=(12, 9));
-for k, colour in zip(range(n_clusters_), colours):
-    my_members = lbls == k
-    cluster_center = cluster_centers[k]
-    fcg = plt.plot(inau_relppc_y[my_members, 0], inau_relppc_y[my_members, 1],
-                   color=colour, marker='o', ls='', alpha=0.3)
-    fcg = plt.plot(cluster_center[0], cluster_center[1], 'o',
-                   markerfacecolor=colour, markeredgecolor='k', markersize=14)
-title = plt.title('Estimated number of clusters: {}'.format(n_clusters_))
-plt.show()
+# Set up the figure for the subplots
+colours = sns.color_palette('muted')
+ncols = 2
+nrows = math.ceil((len(quants) + 1)/ ncols)
+fig = plt.figure(figsize=(13, 20))
+# Run through each combination of the fit parameters
+for axi in range(1, len(quants) + 1):
+    ax = plt.subplot(nrows, ncols, axi)
+    quant = quants[axi - 1]
+    # Calculate the MS
+    bandwidth = estimate_bandwidth(inau_relppc_y, quantile=quant);
+    apc_ms = MeanShift(bandwidth=bandwidth, bin_seeding=True);
+    _ = apc_ms.fit(inau_relppc_y);
+    lbls = apc_ms.labels_;
+    cluster_centers = apc_ms.cluster_centers_;
+    lbls_unique = np.unique(lbls);
+    n_clusters_ = len(lbls_unique);
+    # Plot result
+    for k, colour in zip(range(n_clusters_), colours):
+        my_members = lbls == k;
+        cluster_center = cluster_centers[k];
+        _ = ax.plot(inau_relppc_y[my_members, 0],
+                       inau_relppc_y[my_members, 1],
+                       color=colour, marker='o', ls='', alpha=0.3)
+        _ = ax.plot(cluster_center[0], cluster_center[1], 'o',
+                       markerfacecolor=colour, markeredgecolor='k', markersize=14)
+    _ = ax.set_title('Quant of {} :: Est. clusters: {}'.format(quant, n_clusters_))
+# %% codecell
 # TODO: Label axes
-# TODO: Add title
-# TODO: Do for quantile = [0.05, 0.1, 0.2, 0.25, 0.4]
-# TODO: For multiple quantile, draw as subplots
+# TODO: Custom tick label formatting
+# Provide some more white space to allow the plots to breathe
+plt.subplots_adjust(wspace = 0.1);
+plt.subplots_adjust(hspace = 0.25);
 # %% md
 # 2020-09-15: And so the same story continues, clustering appears as horizontal
 # bisections
