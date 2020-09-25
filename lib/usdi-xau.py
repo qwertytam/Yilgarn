@@ -29,7 +29,7 @@
 # %% md
 # ## 0. Preamble: Code Setup and Function Definitions
 # %% md
-# ### Check if required modules are installed in the kernel; and if not install them
+# ### 0.1 Check if required modules are installed in the kernel; and if not install them
 # %% codecell
 import sys
 import subprocess
@@ -51,7 +51,7 @@ fe.system.specs()
 %load_ext autoreload
 %autoreload 2   # Use 0 to disable this feature.
 # %% md
-#  ### Import useful modules for data wrangling
+#  ### 0.2 Import useful modules for data wrangling
 # %% codecell
 import numpy as np
 import math
@@ -177,7 +177,7 @@ dt_edp_ppc_y = min(fe.tail(dtau_relppc_y, 1).index[0],
 # %% md
 # ## 2. Plot and Review Time Series of Monthly Inflation and Gold Price Levels
 # %% md
-# ### Time series of the inflation index and gold prices in nominal and real terms
+# ### 2.1 Time series of the inflation index and gold prices in nominal and real terms
 # %% codecell
 # Create figure and axes
 fig, (ax0, ax1, ax2) = plt.subplots(ncols=3, figsize=(16, 5));
@@ -211,7 +211,7 @@ ax2.set_title('Gold Price (Real USD)');
 # *Nonetheless, time to look at some analysis in greater detail to see if
 # there is anything interesting in the data.*
 # %% md
-# ### Time series of the change in the inflation index and gold prices in nominal and real terms
+# ### 2.2 Time series of the change in the inflation index and gold prices in nominal and real terms
 # %% md
 # **Monthly nominal gold price data**
 # %% codecell
@@ -260,8 +260,7 @@ yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
 # **Yearly real gold price data**
 # %% codecell
 # Combine yearly inflation with real gold price data
-dtinau_relppc_y = pd.concat([dtin_ppc_y[dt_stp_ppc_y:dt_edp_ppc_y],
-                             dtau_relppc_y[dt_stp_ppc_y:dt_edp_ppc_y]], axis=1)
+dtinau_relppc_y = pd.concat([dtin_ppc_y[dt_stp_ppc_y:dt_edp_ppc_y], dtau_relppc_y[dt_stp_ppc_y:dt_edp_ppc_y]], axis=1)
 in_ppc_y_cln = 'Inflation'
 au_relppc_y_cln = 'YoY Real USD % Change'
 dtinau_relppc_y.columns = [in_ppc_y_cln, au_relppc_y_cln]
@@ -343,12 +342,47 @@ for ax in fcg_relppc_y.axes.flat:
 #
 # 2. Of some interest is the group of data points in the upper right hand
 # side of the chart. Does this indicate that gold prices change significantly
-# when inflation is much higher than normal? Will explore higher order
-# polynomial models and cluster analysis to see if there is anything of
-# interest.
+# when inflation is much higher than normal? First will explore if there is
+# a grouping of certain time periods to the data e.g. do we see the years
+# bunch together or spread apart?
+# %% md
+# ### 3.3 Reviewing Data by Year
+# %% codecell
+# Add a column for calendar year
+yr_var_cln = 'Year'
+dtinau_nomrelppc_m[yr_var_cln] = dtinau_nomrelppc_m.index.year
+dtinau_relppc_y[yr_var_cln] = dtinau_relppc_y.index.year
+# Calculate mean by year for inflation, nominal and real gold prices
+inau_nomrelppcmn_m = dtinau_nomrelppc_m.groupby([inau_var_cln, yr_var_cln], as_index=False).mean()
+inau_relppcmn_y = dtinau_relppc_y.groupby([yr_var_cln], as_index=False).mean()
+# %% codecell
+n_colors = len(np.unique(dtinau_relppc_y.loc[:, yr_var_cln]))
+sns.set_palette("cubehelix", n_colors=n_colors)
+# Display the chart
+fcg = sns.lmplot(data=dtinau_relppc_y, x=in_ppc_y_cln, y=au_relppc_y_cln,
+                 order=1, hue=yr_var_cln, height=6, aspect=1.7)
+# Adjust the legend
+fcg.legend.remove()
+plt.subplots_adjust(wspace = 0.5)
+_ = plt.legend(loc='lower center', ncol=10, bbox_to_anchor=(0.50, -0.37));
+# Fomat the axes
+_ = yt.frmt_xaxislbls(fcg, fmt='{:.1f}', fmt0='{:.1%}', tickscle=1, tickscle0=0.01)
+_ = yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
+# Add text label for each year
+rows, cols = inau_relppcmn_y.shape
+for row in range(rows):
+    _ = fcg.axes[0][0].annotate('{}'.format(inau_relppcmn_y.iloc[row, 0]), xy=(inau_relppcmn_y.iloc[row, 1], inau_relppcmn_y.iloc[row, 2]))
+# %% md
+# **2020-09-25 Results Discussion**
+#
+# So a little difficult to read, but it looks like a positive relationship
+# between high inflation and increases in gold prices is essentially driven
+# by one year, 1980. Interesting to note that 1982 still sees high inflation,
+# but declining gold prices.
 # %% md
 # ### 3.3 Yearly Data with Higher Order Polynomials
 # %% codecell
+sns.set_palette('muted')
 deg = 2     # Start at degree=2
 fig, axs = plt.subplots(ncols=2, nrows=2, figsize=(13.3, 10));
 for axx in axs:
@@ -359,12 +393,13 @@ for axx in axs:
         if deg != 4:
             _ = ax.set_xlabel('')
             _ = ax.set_ylabel('')
+        else:
+            _ = yt.frmt_xaxislbls(ax, fmt='{:.1%}', fmt0='{:.1%}', tickscle=0.01, tickscle0=0.01)
+            _ = yt.frmt_yaxislbls(ax, fmt='{:.0%}', fmt0='{:.0%}', tickscle=0.01, tickscle0=0.01)
         deg += 1
 # Provide some more white space to allow the plots to breathe
 plt.subplots_adjust(wspace = 0.2)
 plt.subplots_adjust(hspace = 0.2)
-# %% codecell
-# TODO: Custom tick label formatting
 # %% md
 # **2020-09-22 Results Discussion** *(See Appendices for Statistics)*
 #
@@ -418,9 +453,8 @@ start = math.log(10, 10)
 stop = math.log(70, 10)
 # %% codecell
 # Define number of components to use
-n_cpts = [1, 2, 3, 4, 6, 8, 10]
+n_cpts = [1, 2, 4, 6, 8, 10]
 # Set up the figure for the subplots
-colours = sns.color_palette('muted')
 ncols = 2
 nrows = math.ceil(len(n_cpts) / ncols)
 fit = plt.figure(figsize=(15, 25))
@@ -445,14 +479,15 @@ for axi in range(1, len(n_cpts) + 1):
                      levels=np.logspace(start=0.3, stop=1.845, num=20, base=10));
     fcg = ax.scatter(inau_relppc_y[:, 0], inau_relppc_y[:, 1], .8);
     _ = ax.set_title('No. Components: {0}'.format(n_cpt));
-    if deg == 10:
-        CB = plt.colorbar(CS, shrink=0.8);
+    # Labels on second last figure...assuming even number of figures
+    if n_cpt == n_cpts[-2]:
+        _ = ax.set_xlabel(in_cln)
+        _ = ax.set_ylabel(inau_y_val_cln)
+        _ = yt.frmt_xaxislbls(ax, fmt='{:.1%}', fmt0='{:.1%}', tickscle=0.01, tickscle0=0.01)
+        _ = yt.frmt_yaxislbls(ax, fmt='{:.0%}', fmt0='{:.0%}', tickscle=0.01, tickscle0=0.01)
 # Provide some more white space to allow the plots to breathe
 plt.subplots_adjust(wspace = 0.1)
 plt.subplots_adjust(hspace = 0.25)
-# %% codecell
-# TODO: Label axes
-# TODO: Custom tick label formatting
 # %% md
 # **2020-09-22 Results Discussion**
 #
@@ -492,12 +527,15 @@ for axi in range(1, len(n_clusters) + 1):
                        markerfacecolor=col, markeredgecolor='k', markersize=6)
 
     _ = ax.set_title('No. of Clusters: {0}'.format(nci));
+    # Labels on second last figure...assuming even number of figures
+    if nci == n_clusters[-2]:
+        _ = ax.set_xlabel(in_cln)
+        _ = ax.set_ylabel(inau_y_val_cln)
+        _ = yt.frmt_xaxislbls(ax, fmt='{:.1%}', fmt0='{:.1%}', tickscle=0.01, tickscle0=0.01)
+        _ = yt.frmt_yaxislbls(ax, fmt='{:.0%}', fmt0='{:.0%}', tickscle=0.01, tickscle0=0.01)
 # Provide some more white space to allow the plots to breathe
 plt.subplots_adjust(wspace = 0.1)
 plt.subplots_adjust(hspace = 0.25)
-# %% codecell
-# TODO: Label axes
-# TODO: Custom tick label formatting
 # %% md
 # **2020-09-15 Results Discussion**
 #
@@ -578,6 +616,7 @@ _ = ax.set_title('Reachability Plot')
 # steepness, knee detection, or local maxima.
 # %% codecell
 # Set up the figure for the subplots
+
 ncols = 2
 nrows = math.ceil((len(eps) + 1)/ ncols)
 fit = plt.figure(figsize=(13, 16))
@@ -604,12 +643,16 @@ for axi in range(1, len(eps) + 2):
                        inau_relppc_y[epslabel == -1, 1], 'k+', alpha=0.1);
         title = 'Clustering at {0:.2f} epsilon cut: DBSCAN'.format(eps[axi - 2])
         fcg = ax.set_title(title)
+    # Labels on second last figure...assuming even number of figures
+    if axi - 2 == len(epslabels) - 2:
+        _ = ax.set_xlabel(in_cln)
+        _ = ax.set_ylabel(inau_y_val_cln)
+        _ = yt.frmt_xaxislbls(ax, fmt='{:.1%}', fmt0='{:.1%}', tickscle=0.01, tickscle0=0.01)
+        _ = yt.frmt_yaxislbls(ax, fmt='{:.0%}', fmt0='{:.0%}', tickscle=0.01, tickscle0=0.01)
 # Provide some more white space to allow the plots to breathe
-plt.subplots_adjust(wspace = 0.1)
-plt.subplots_adjust(hspace = 0.25)
+plt.subplots_adjust(wspace = 0.1);
+plt.subplots_adjust(hspace = 0.25);
 # %% codecell
-# TODO: Label axes
-# TODO: Custom tick label formatting
 # %% md
 # **2020-09-24 Results Discussion**
 #
@@ -650,9 +693,12 @@ for axi in range(1, len(quants) + 1):
         _ = ax.plot(cluster_center[0], cluster_center[1], 'o',
                        markerfacecolor=colour, markeredgecolor='k', markersize=14)
     _ = ax.set_title('Quant of {} :: Est. clusters: {}'.format(quant, n_clusters_))
+    if quant == quants[-2]:
+        _ = ax.set_xlabel(in_cln)
+        _ = ax.set_ylabel(inau_y_val_cln)
+        _ = yt.frmt_xaxislbls(ax, fmt='{:.1%}', fmt0='{:.1%}', tickscle=0.01, tickscle0=0.01)
+        _ = yt.frmt_yaxislbls(ax, fmt='{:.0%}', fmt0='{:.0%}', tickscle=0.01, tickscle0=0.01)
 # %% codecell
-# TODO: Label axes
-# TODO: Custom tick label formatting
 # Provide some more white space to allow the plots to breathe
 plt.subplots_adjust(wspace = 0.1);
 plt.subplots_adjust(hspace = 0.25);

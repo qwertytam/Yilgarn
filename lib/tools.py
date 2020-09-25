@@ -102,6 +102,7 @@ def frmt_xaxislbls(fcg, fmt: str='{:.0}', fmt0: str=':.0%',
     for ax in axobjs:
         ticks = ax.get_xticks()
         lbls = fmtticks(fmt, fmt0, ticks, tickscle, tickscle0)
+        ax.set_xticks(ax.get_xticks().tolist()) # REMOVE IN THE FUTURE - PLACED TO AVOID WARNING - IT IS A BUG FROM MATPLOTLIB 3.3.1        
         fcg.set_xticklabels(lbls)
 
     return
@@ -134,6 +135,7 @@ def frmt_yaxislbls(fcg, fmt: str='{:.0}', fmt0: str=':.0%',
     for ax in axobjs:
         ticks = ax.get_yticks()
         lbls = fmtticks(fmt, fmt0, ticks, tickscle, tickscle0)
+        ax.set_yticks(ax.get_yticks().tolist()) # REMOVE IN THE FUTURE - PLACED TO AVOID WARNING - IT IS A BUG FROM MATPLOTLIB 3.3.1
         fcg.set_yticklabels(lbls)
 
     return
