@@ -286,7 +286,7 @@ yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
 # ## 3. Plot and Review Change in Inflation and Gold Price Levels
 # ### 3.1 Monthly Data
 # %% codecell
-# Add the real data onto the inflation and noimnal data
+# Add the real data onto the inflation and nominal data
 dtinau_nomrelppc_m = dtinau_nomppc_m.append(dtinau_relppc_m.loc[dtinau_relppc_m[inau_var_cln] == au_relppc_m_cln])
 # Pivot the table back into  multiple columns then melt and rename
 inau_nomrelppc_m = dtinau_nomrelppc_m.pivot_table(values = inau_m_val_cln,
@@ -309,7 +309,7 @@ fcg_nomrelppc_m = fcg_nomrelppc_m.set_titles(col_template="{col_name}" +
 # **2020-09-22 Results Discussion** *(See Appendices for Statistics)*
 #
 # 1. For nominal prices, the low correlation coefficient (~0.15), poor ability
-# of the model to explain movements (low R-squared and adjusted R-squareds of
+# of the model to explain movements (low R-squared and adjusted R-squared's of
 # ~0.02) indicate that inflation explains only a small amount of the movement
 # in nominal gold prices. The t-stat and p-values are erroneously high as
 # changes in inflation will be included in the nominal price. To correct for
@@ -336,7 +336,7 @@ for ax in fcg_relppc_y.axes.flat:
 #
 # 1. A correlation coefficient of approx. 0.31 and a significant t-stat for the
 # coefficient indicates that a yearly model is of better use than a monthly
-# view. However, the r-squared and adjusted r-squareds are still small
+# view. However, the r-squared and adjusted r-squared's are still small
 # (approx. 0.1) indicating that the model is missing many other factors in
 # determining the changes in gold price.
 #
@@ -377,7 +377,7 @@ for row in range(rows):
 #
 # So a little difficult to read, but it looks like a positive relationship
 # between high inflation and increases in gold prices is essentially driven
-# by one year, 1980. Interesting to note that 1982 still sees high inflation,
+# by one year, 1980. Interesting to note that 1981 still sees high inflation,
 # but declining gold prices.
 # %% md
 # ### 3.3 Yearly Data with Higher Order Polynomials
@@ -491,7 +491,7 @@ plt.subplots_adjust(hspace = 0.25)
 # %% md
 # **2020-09-22 Results Discussion**
 #
-# For 2 components EM essentially places a high likelihood
+# For two components EM essentially places a high likelihood
 # around the cluster of data centred on [2.5, 0]. As we increase the number of
 # components, EM starts to place more weight on the high-inflation,
 # high-positive change in gold prices. However, no significant 'peak' forms
@@ -592,7 +592,7 @@ _ = ax.set_title('Reachability Plot')
 # sample size below approx. 20 reduces it too far loosing any relevance.
 #
 # Looking at different values for `xi=0.01, min_cluster_size=0.01` alter the
-# location and cutoff for the reachability clusters (correct terminology?).
+# location and cut off for the reachability clusters (correct terminology?).
 # Values of `0.01` seem to be the best compromise for this dataset.
 #
 # **For reference from the Wikipedia pages on [DBSCAN](https://en.wikipedia.org/wiki/DBSCAN)
@@ -602,7 +602,7 @@ _ = ax.set_title('Reachability Plot')
 # much too small, a large part of the data will not be clustered; whereas for a
 # too high value of epsilon, clusters will merge and the majority of objects
 # will be in the same cluster. In general, small values of epsilon are
-# preferable,and as a rule of thumb only a small fraction of points should be
+# preferable, and as a rule of thumb only a small fraction of points should be
 # within this distance of each other.
 #
 # As a general rule for `min_samples` estimation, more points are generally
@@ -656,7 +656,7 @@ plt.subplots_adjust(hspace = 0.25);
 # %% md
 # **2020-09-24 Results Discussion**
 #
-# The `DBSCAN` seems to slign with `OPTICS` at for an epsilon of approx. 1.5.
+# The `DBSCAN` seems to align with `OPTICS` at for an epsilon of approx. 1.5.
 #
 # More broadly the methods appear to split the data horizontally similar to
 # the EM and K-Means methods.
@@ -698,7 +698,6 @@ for axi in range(1, len(quants) + 1):
         _ = ax.set_ylabel(inau_y_val_cln)
         _ = yt.frmt_xaxislbls(ax, fmt='{:.1%}', fmt0='{:.1%}', tickscle=0.01, tickscle0=0.01)
         _ = yt.frmt_yaxislbls(ax, fmt='{:.0%}', fmt0='{:.0%}', tickscle=0.01, tickscle0=0.01)
-# %% codecell
 # Provide some more white space to allow the plots to breathe
 plt.subplots_adjust(wspace = 0.1);
 plt.subplots_adjust(hspace = 0.25);
@@ -713,7 +712,6 @@ plt.subplots_adjust(hspace = 0.25);
 dtinau_nomppc_m = dtinau_nomppc_m.pivot_table(values=inau_m_val_cln,
                                               index=dtinau_nomppc_m.index,
                                               columns=inau_var_cln)
-# %% codecell
 yt.dispmodel(dtinau_nomppc_m, degree=1)
 # %% md
 # ### A.2 Inflation vs. real gold prices, monthly, polynomial order = 1
@@ -722,11 +720,9 @@ yt.dispmodel(dtinau_nomppc_m, degree=1)
 dtinau_relppc_m = dtinau_relppc_m.pivot_table(values=inau_m_val_cln,
                                               index=dtinau_relppc_m.index,
                                               columns=inau_var_cln)
-# %% codecell
 yt.dispmodel(dtinau_relppc_m)
 # %% md
 # ### A.3 Inflation vs. real gold prices, yearly, polynomial order = 1
-# %% codecell
 yt.dispmodel(dtinau_relppc_y, degree=1)
 # %% md
 # ### A.4 Inflation vs. real gold prices, yearly, polynomial order = 2
