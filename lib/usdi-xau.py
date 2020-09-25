@@ -4,8 +4,7 @@
 # inflation.
 #
 # ### Inspirations
-# - [The FRED® Blog: Is gold a good hedge against inflation?]
-# (https://fredblog.stlouisfed.org/2019/03/is-gold-a-good-hedge-against-inflation/)
+# - [The FRED® Blog: Is gold a good hedge against inflation?](https://fredblog.stlouisfed.org/2019/03/is-gold-a-good-hedge-against-inflation/)
 #
 # ### Definitions
 # - Gold: The ICE Benchmark Administration Limited (IBA), Gold Fixing Price in
@@ -23,14 +22,23 @@
 # - Python: datetime, fecon236, matplotlib, numpy, pandas, pandas_datareader,
 # sklearn, statsmodels, sympy, seaborn
 # - Written using Python 3.8.5, Atom 1.51, Hydrogen 2.14.4
+# - Written in Australian English
 #
-# ### General To Do List:
-# - Understand cluster analysis in greater detail
-# - Review peer work
+# %% md
+# ## Upfront Summary of Results
+# A significant positive correlation of inflation and gold prices has only
+# occurred in one year: 1980. That year saw very high inflation (by USD
+# historical standards) and large positive increases in the gold price.
+#
+# Removing the year 1980, and the data is mixed with no significant correlation.
+#
+# **TL;DR: Buy gold as a *possible* inflation hedge if you think inflation
+# will be really high i.e. over 12%**
+#
 # %% md
 # ## 0. Preamble: Code Setup and Function Definitions
 # %% md
-# ### Check if required modules are installed in the kernel; and if not install them
+# ### 0.1 Check if required modules are installed in the kernel; and if not install them
 # %% codecell
 import sys
 import subprocess
@@ -52,7 +60,7 @@ fe.system.specs()
 %load_ext autoreload
 %autoreload 2   # Use 0 to disable this feature.
 # %% md
-#  ### Import useful modules for data wrangling
+#  ### 0.2 Import useful modules for data wrangling
 # %% codecell
 import numpy as np
 import math
@@ -132,7 +140,7 @@ in_fcd = fe.m4cpi      # FRED code 'CPIAUCSL'
 # in_fcd = fe.m4pce    # FRED code 'PCEPI'
 # Synthetic average of 'CPIAUCSL', 'CPILFESL', 'PCEPI', 'CPILFESL'
 # in_fcd = fe.m4infl
-dtin_idx_m = fe.get (fe.m4cpi)        # Returns the index, not percentage change
+dtin_idx_m = fe.get (fe.m4cpi)  # Returns the index, not percentage change
 # %% codecell
 # Gold with USD inflation removed i.e. in real USD
 # First, calculate rebased inflation index
@@ -147,7 +155,7 @@ dt_stp_lvl_m = max(fe.head(dtau_nom_m, 1).index[0],
 dt_edp_lvl_m = min(fe.tail(dtau_nom_m, 1).index[0],
                    fe.tail(dtin_idx_m, 1).index[0])
 # %% codecell
-# Calculate the real gold price
+# Calculate the real adjusted for inflation gold price
 dtau_rel_m = fe.div(dtau_nom_m.loc[dt_stp_lvl_m:dt_edp_lvl_m],
                     dtin_idx_rebased.loc[dt_stp_lvl_m:dt_edp_lvl_m])
 # %% md
@@ -175,60 +183,10 @@ dt_stp_ppc_y = max(fe.head(dtau_relppc_y, 1).index[0],
                    fe.head(dtin_ppc_y, 1).index[0])
 dt_edp_ppc_y = min(fe.tail(dtau_relppc_y, 1).index[0],
                    fe.tail(dtin_ppc_y, 1).index[0])
-# %% codecell
-# Combine inflation monthly inflation with nominal gold price data
-dtinau_nomppc_m = pd.concat([dtin_ppc_m[dt_stp_ppc_m:dt_edp_ppc_m],
-                             dtau_nomppc_m[dt_stp_ppc_m:dt_edp_ppc_m]], axis=1)
-inau_nomppc_m_cln = 'Inflation'
-au_nomppc_m_cln = 'MoM Nom. USD % Change'
-dtinau_nomppc_m.columns = [inau_nomppc_m_cln, au_nomppc_m_cln]
-# %% codecell
-# Combine inflation monthly inflation with real gold price data
-dtinau_relppc_m = pd.concat([dtin_ppc_m[dt_stp_ppc_m:dt_edp_ppc_m],
-                             dtau_relppc_m[dt_stp_ppc_m:dt_edp_ppc_m]], axis=1)
-au_relppc_m_cln = 'MoM Real USD % Change'
-dtinau_relppc_m.columns = [inau_nomppc_m_cln, au_relppc_m_cln]
-# %% codecell
-# Join and melt the data together for use later by the plotting functions
-dtinau_nomrelppc_m = dtinau_nomppc_m.join(dtinau_relppc_m.loc[:, dtinau_relppc_m.columns != inau_nomppc_m_cln],
-                                          how='inner', sort=True)
-dtinau_nomppc_m = pd.melt(dtinau_nomrelppc_m, ignore_index=False,
-                          value_vars=[inau_nomppc_m_cln, au_nomppc_m_cln])
-dtinau_relppc_m = pd.melt(dtinau_nomrelppc_m, ignore_index=False,
-                          value_vars=[inau_nomppc_m_cln, au_relppc_m_cln])
-inau_nomrelppc_m = pd.melt(dtinau_nomrelppc_m, id_vars=inau_nomppc_m_cln,
-                           value_vars=[au_nomppc_m_cln, au_relppc_m_cln])
-# %% codecell
-# Update column names
-inau_var_cln = 'Infl or Gold Price'
-inau_m_val_cln = 'MoM % Change'
-dtinau_nomppc_m.columns = [inau_var_cln, inau_m_val_cln]
-dtinau_relppc_m.columns = [inau_var_cln, inau_m_val_cln]
-
-au_var = 'Nom. or Real'
-au_nomrelppc_cln = 'MoM Gold Price % Change'
-inau_nomrelppc_m.columns = [inau_nomppc_m_cln, au_var, au_nomrelppc_cln]
-# %% codecell
-# Shorten the column names and melt data
-dtinau_nomrelppc_m = pd.melt(dtinau_nomrelppc_m, ignore_index=False,
-                             id_vars=inau_nomppc_m_cln,
-                             value_vars=[au_nomppc_m_cln, au_relppc_m_cln])
-# %% codecell
-# Combine inflation yearly inflation with real gold price data
-# Show same analysis as above
-dtinau_relppc_y = pd.concat([dtin_ppc_y[dt_stp_ppc_y:dt_edp_ppc_y],
-                             dtau_relppc_y[dt_stp_ppc_y:dt_edp_ppc_y]], axis=1)
-in_ppc_y_cln = 'Inflation'
-au_relppc_y_cln = 'YoY Real USD % Change'
-dtinau_relppc_y.columns = [in_ppc_y_cln, au_relppc_y_cln]
-dtinau_relppc_y = pd.melt(dtinau_relppc_y, ignore_index=False,
-                          value_vars=[in_ppc_y_cln, au_relppc_y_cln])
-inau_y_val_cln = 'YoY % Change'
-dtinau_relppc_y.columns = [inau_var_cln, inau_y_val_cln]
 # %% md
 # ## 2. Plot and Review Time Series of Monthly Inflation and Gold Price Levels
 # %% md
-# ### Time series of the inflation index and gold prices in nominal and real terms
+# ### 2.1 Time series of the inflation index and gold prices in nominal and real terms
 # %% codecell
 # Create figure and axes
 fig, (ax0, ax1, ax2) = plt.subplots(ncols=3, figsize=(16, 5));
@@ -262,9 +220,23 @@ ax2.set_title('Gold Price (Real USD)');
 # *Nonetheless, time to look at some analysis in greater detail to see if
 # there is anything interesting in the data.*
 # %% md
-# ### Time series of the change in the inflation index and gold prices in nominal and real terms
+# ### 2.2 Time series of the change in the inflation index and gold prices in nominal and real terms
 # %% md
 # **Monthly nominal gold price data**
+# %% codecell
+# Combine monthly inflation with nominal gold price data
+dtinau_nomppc_m = pd.concat([dtin_ppc_m[dt_stp_ppc_m:dt_edp_ppc_m],
+                             dtau_nomppc_m[dt_stp_ppc_m:dt_edp_ppc_m]], axis=1)
+in_cln = 'Inflation'
+au_nomppc_m_cln = 'MoM Nom. USD % Change'
+dtinau_nomppc_m.columns = [in_cln, au_nomppc_m_cln]
+dtinau_nomppc_m = pd.melt(dtinau_nomppc_m, ignore_index=False,
+                          value_vars=[in_cln, au_nomppc_m_cln])
+# %% codecell
+# Update column names
+inau_var_cln = 'Infl or Gold Price'
+inau_m_val_cln = 'MoM % Change'
+dtinau_nomppc_m.columns = [inau_var_cln, inau_m_val_cln]
 # %% codecell
 # Set palette for use
 clrpalette = sns.color_palette(palette='husl', n_colors=2)
@@ -277,6 +249,17 @@ yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
 # %% md
 # **Monthly real gold price data**
 # %% codecell
+# Combine monthly inflation with real gold price data
+dtinau_relppc_m = pd.concat([dtin_ppc_m[dt_stp_ppc_m:dt_edp_ppc_m],
+                             dtau_relppc_m[dt_stp_ppc_m:dt_edp_ppc_m]], axis=1)
+au_relppc_m_cln = 'MoM Real USD % Change'
+dtinau_relppc_m.columns = [in_cln, au_relppc_m_cln]
+dtinau_relppc_m = pd.melt(dtinau_relppc_m, ignore_index=False,
+                          value_vars=[in_cln, au_relppc_m_cln])
+# %% codecell
+# Update column names
+dtinau_relppc_m.columns = [inau_var_cln, inau_m_val_cln]
+# %% codecell
 # Plot and format axis labels
 fcg = sns.relplot(data=dtinau_relppc_m, x=dtinau_relppc_m.index,
                   y=inau_m_val_cln, hue=inau_var_cln, alpha=0.5,
@@ -284,6 +267,18 @@ fcg = sns.relplot(data=dtinau_relppc_m, x=dtinau_relppc_m.index,
 yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
 # %% md
 # **Yearly real gold price data**
+# %% codecell
+# Combine yearly inflation with real gold price data
+dtinau_relppc_y = pd.concat([dtin_ppc_y[dt_stp_ppc_y:dt_edp_ppc_y], dtau_relppc_y[dt_stp_ppc_y:dt_edp_ppc_y]], axis=1)
+in_ppc_y_cln = 'Inflation'
+au_relppc_y_cln = 'YoY Real USD % Change'
+dtinau_relppc_y.columns = [in_ppc_y_cln, au_relppc_y_cln]
+dtinau_relppc_y = pd.melt(dtinau_relppc_y, ignore_index=False,
+                          value_vars=[in_ppc_y_cln, au_relppc_y_cln])
+# %% codecell
+# Update column names
+inau_y_val_cln = 'YoY % Change'
+dtinau_relppc_y.columns = [inau_var_cln, inau_y_val_cln]
 # %% codecell
 # Plot and format axis labels
 fcg = sns.relplot(data=dtinau_relppc_y, x=dtinau_relppc_y.index,
@@ -295,14 +290,24 @@ yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
 #
 # Difficult to identify any particular trends looking at the data this way.
 # Likely easier to plot the data as scatter plots with inflation on the x-axis
-# and change in gold price on the y-axis
+# and change in gold price on the y-axis.
 # %% md
 # ## 3. Plot and Review Change in Inflation and Gold Price Levels
 # ### 3.1 Monthly Data
 # %% codecell
+# Add the real data onto the inflation and nominal data
+dtinau_nomrelppc_m = dtinau_nomppc_m.append(dtinau_relppc_m.loc[dtinau_relppc_m[inau_var_cln] == au_relppc_m_cln])
+# Pivot the table back into  multiple columns then melt and rename
+inau_nomrelppc_m = dtinau_nomrelppc_m.pivot_table(values = inau_m_val_cln,
+                                                  columns = inau_var_cln,
+                                                  index = dtinau_nomrelppc_m.index)
+inau_nomrelppc_m = pd.melt(inau_nomrelppc_m, ignore_index=False, id_vars=in_cln,
+                          value_vars=[au_nomppc_m_cln, au_relppc_m_cln])
+inau_nomrelppc_m.rename(columns={'value':inau_m_val_cln}, inplace=True)
+# %% codecell
 # Display the charts
-fcg_nomrelppc_m = yt.snslmplot(data=inau_nomrelppc_m, xcol=inau_nomppc_m_cln,
-                            ycol=au_nomrelppc_cln, yidcol=au_var, degree=1,
+fcg_nomrelppc_m = yt.snslmplot(data=inau_nomrelppc_m, xcol=in_cln,
+                            ycol=inau_m_val_cln, yidcol=inau_var_cln, degree=1,
                             col_wrap=2, aspect=1.1)
 plt_nomrelppc_m_title = ' vs. Inflation {} to {}'
 plt_nomrelppc_m_title =  plt_nomrelppc_m_title.format(dt_stp_ppc_m.strftime("%b %Y"),
@@ -313,12 +318,12 @@ fcg_nomrelppc_m = fcg_nomrelppc_m.set_titles(col_template="{col_name}" +
 # **2020-09-22 Results Discussion** *(See Appendices for Statistics)*
 #
 # 1. For nominal prices, the low correlation coefficient (~0.15), poor ability
-# of the model to explain movements (low R-squared and adjusted R-squareds of
+# of the model to explain movements (low R-squared and adjusted R-squared's of
 # ~0.02) indicate that inflation explains only a small amount of the movement
 # in nominal gold prices. The t-stat and p-values are erroneously high as
 # changes in inflation will be included in the nominal price. To correct for
-# this we need to remove inflation and use real prices
-# 2. For real prices, all model statistics show a weaker link as expected
+# this we need to remove inflation and use real prices.
+# 2. For real prices, all model statistics show a weaker link as expected.
 # %% md
 # ### 3.2 Yearly Data
 # %% codecell
@@ -340,15 +345,72 @@ for ax in fcg_relppc_y.axes.flat:
 #
 # 1. A correlation coefficient of approx. 0.31 and a significant t-stat for the
 # coefficient indicates that a yearly model is of better use than a monthly
-# view. However, the r-squared and adjusted r-squareds are still small
+# view. However, the r-squared and adjusted r-squared's are still small
 # (approx. 0.1) indicating that the model is missing many other factors in
 # determining the changes in gold price.
 #
 # 2. Of some interest is the group of data points in the upper right hand
 # side of the chart. Does this indicate that gold prices change significantly
-# when inflation is much higher than normal? Will explore higher order
-# polynomial models and cluster analysis to see if there is anything of
-# interest.
+# when inflation is much higher than normal? First will explore if there is
+# a grouping of certain time periods to the data e.g. do we see the years
+# bunch together or spread apart?
+# %% md
+# ### 3.3 Reviewing Data by Year
+# %% codecell
+# Add a column for calendar year
+yr_var_cln = 'Year'
+dtinau_relppc_y[yr_var_cln] = dtinau_relppc_y.index.year
+# Calculate mean by year for inflation, nominal and real gold prices
+inau_relppcmn_y = dtinau_relppc_y.groupby([yr_var_cln], as_index=False).mean()
+# %% codecell
+n_colors = len(np.unique(dtinau_relppc_y.loc[:, yr_var_cln]))
+sns.set_palette("cubehelix", n_colors=n_colors)
+# Display the chart
+fcg = sns.lmplot(data=dtinau_relppc_y, x=in_ppc_y_cln, y=au_relppc_y_cln,
+                 order=1, hue=yr_var_cln, height=6, aspect=1.7)
+# Adjust the legend
+fcg.legend.remove()
+plt.subplots_adjust(wspace = 0.5)
+_ = plt.legend(loc='lower center', ncol=10, bbox_to_anchor=(0.50, -0.37));
+# Fomat the axes
+_ = yt.frmt_xaxislbls(fcg, fmt='{:.1f}', fmt0='{:.1%}', tickscle=1, tickscle0=0.01)
+_ = yt.frmt_yaxislbls(fcg, fmt='{:.0f}', fmt0='{:.0%}', tickscle=1, tickscle0=0.01)
+# Add text label for each year
+rows, cols = inau_relppcmn_y.shape
+for row in range(rows):
+    _ = fcg.axes[0][0].annotate('{}'.format(inau_relppcmn_y.iloc[row, 0]), xy=(inau_relppcmn_y.iloc[row, 1], inau_relppcmn_y.iloc[row, 2]))
+# %% md
+# **2020-09-25 Results Discussion**
+#
+# So a little difficult to read, but it looks like a positive relationship
+# between high inflation and increases in gold prices is essentially driven
+# by one year, 1980. Interesting to note that 1981 still sees high inflation,
+# but declining gold prices.
+#
+# So does the correlation still hold if we remove the year 1980?
+# %% md
+# ### 3.4 Yearly Data exc. 1980
+# %% codecell
+# Display the chart
+sns.set_palette('muted')
+fcg_relppc_y = yt.snslmplot(data=dtinau_relppc_y.loc[dtinau_relppc_y[yr_var_cln] != 1980],
+                            xcol=in_ppc_y_cln, ycol=au_relppc_y_cln, degree=1)
+plt_relppc_y_title = 'Yearly Change in Gold Price (Real USD) vs. Inflation {} to {} exc. 1980'
+plt_relppc_y_title =  plt_relppc_y_title.format(dt_stp_ppc_y.strftime("%b %Y"),
+                                                dt_edp_ppc_y.strftime("%b %Y"))
+for ax in fcg_relppc_y.axes.flat:
+    fcg_relppc_y_ax = ax.set_title(plt_relppc_y_title)
+# %% md
+# **2020-09-25 Results Discussion** *(See Appendices for Statistics)*
+#
+# 1. Removing 1980 sees the correlation coefficient, r-squared's, regression
+# coefficient, t-stat all decline. The r-squared's are no approx. 0.015
+# indicating that the model only provides information for approx. 1.5% of the
+# movement in gold price. This indicates that aside from one exceptional year,
+# 1980, inflation has very little impact on the price of gold.
+#
+# Will now look at seeing if different models and techniques to analyse the data
+# reveal anything of interest.
 # %% md
 # ### 3.3 Yearly Data with Higher Order Polynomials
 # %% codecell
@@ -362,14 +424,15 @@ for axx in axs:
         if deg != 4:
             _ = ax.set_xlabel('')
             _ = ax.set_ylabel('')
+        else:
+            _ = yt.frmt_xaxislbls(ax, fmt='{:.1%}', fmt0='{:.1%}', tickscle=0.01, tickscle0=0.01)
+            _ = yt.frmt_yaxislbls(ax, fmt='{:.0%}', fmt0='{:.0%}', tickscle=0.01, tickscle0=0.01)
         deg += 1
 # Provide some more white space to allow the plots to breathe
 plt.subplots_adjust(wspace = 0.2)
 plt.subplots_adjust(hspace = 0.2)
-# %% codecell
-# TODO: Custom tick label formatting
 # %% md
-# **2020-09-22 Results Discussion** *(See Appendices for Statistics)*
+# **2020-09-25 Results Discussion** *(See Appendices for Statistics)*
 #
 # Adding more features sees the statistics improve suggesting higher order
 # polynomial models are a better fit (see number discussion below). However, a
@@ -388,7 +451,7 @@ plt.subplots_adjust(hspace = 0.2)
 # just by eyeballing the data), but really takes off when inflation is high.
 #
 # **So, in 2020, are we in the foreseeable future likely to have high inflation
-# reminiscent of the 1970's?** Unlikely in my view.
+# reminiscent of 1974, 1975, 1979, 1980 and 1981?** Unlikely in my view.
 #
 # Model statistics detail: The r-squared and adjusted r-squared's move higher
 # to values of ~0.21 for `order=2`, to ~0.28 for `order=[3,4,5]`. The
@@ -404,138 +467,271 @@ plt.subplots_adjust(hspace = 0.2)
 inau_relppc_y = np.column_stack((dtin_ppc_y['Y'][dt_stp_ppc_y:dt_edp_ppc_y], dtau_relppc_y['Y'][dt_stp_ppc_y:dt_edp_ppc_y]))
 # %% md
 # ### 4.1 Expectation-Maximization
-# %% codecell
-# fit a GMM
-n_cpts = 3
-gmmmdl = mixture.GaussianMixture(n_components=n_cpts, covariance_type='full')
-gmmmdl.fit(inau_relppc_y)
-# display predicted scores by the model as a contour plot
-xln = np.linspace(math.floor(min(inau_relppc_y[:, 0])),
-                  math.ceil(max(inau_relppc_y[:, 0])))
-yln = np.linspace(math.floor(min(inau_relppc_y[:, 1])),
-                  math.ceil(max(inau_relppc_y[:, 1])))
-Xln, Yln = np.meshgrid(xln, yln)
-XX = np.array([Xln.ravel(), Yln.ravel()]).T
-Zln = -gmmmdl.score_samples(XX)
-Zln = Zln.reshape(Xln.shape);
-# %% codecell
-# Create and display the plot
-fig = plt.figure(figsize=(12, 9))
-CS = plt.contour(Xln, Yln, Zln, norm=LogNorm(vmin=1, vmax=100.0),
-                 levels=np.logspace(0, 2, 25));
-CB = plt.colorbar(CS, shrink=0.8);
-fcg = plt.scatter(inau_relppc_y[:, 0], inau_relppc_y[:, 1], .8);
-plt.show()
-# TODO: Label axes
-# TODO: Add title
-# TODO: Do for n_cpts = [2, 3, 4, 6, 10]
-# TODO: For multiple n_cpts, draw as subplots
 # %% md
-# 2020-09-15: For `n_cpts = 2`, GMM essentially places a high likelihood
-# around the cluster of data centred on [3, 0] and doesn't pay much attention
-# to the rest. Not until `n_cpts ~ 10` does GMM lend any importance to
-# the data points in the upper left i.e. where this is a high change in
-# inflation and gold prices
+# The Expectation-Maximization Algorithm, or EM algorithm for short, is an
+# approach for maximum likelihood estimation in the presence of latent
+# variables.
+# %% codecell
+# Set up variables to determine the min and max plotting contour colours
+# Start and stop take log values so a value of 2 is 100 (assuming base 10)
+# Default choice
+# start = 0
+# stop = 2
+# Based on knowing limits of Zln
+# np.amin(Zln)
+# np.amax(Zln)
+start = math.log(10, 10)
+stop = math.log(70, 10)
+# %% codecell
+# Define number of components to use
+n_cpts = [1, 2, 4, 6, 8, 10]
+# Set up the figure for the subplots
+ncols = 2
+nrows = math.ceil(len(n_cpts) / ncols)
+fit = plt.figure(figsize=(15, 25))
+# Run through each number of component to use
+for axi in range(1, len(n_cpts) + 1):
+    n_cpt = n_cpts[axi - 1]
+    ax = plt.subplot(nrows, ncols, axi)
+    # fit a GMM
+    gmmmdl = mixture.GaussianMixture(n_components=n_cpt, covariance_type='full');
+    _ = gmmmdl.fit(inau_relppc_y);
+    # display predicted scores by the model as a contour plot
+    xln = np.linspace(math.floor(min(inau_relppc_y[:, 0])),
+                      math.ceil(max(inau_relppc_y[:, 0])))
+    yln = np.linspace(math.floor(min(inau_relppc_y[:, 1])),
+                      math.ceil(max(inau_relppc_y[:, 1])))
+    Xln, Yln = np.meshgrid(xln, yln)
+    XX = np.array([Xln.ravel(), Yln.ravel()]).T
+    Zln = -gmmmdl.score_samples(XX)
+    Zln = Zln.reshape(Xln.shape);
+    # Create and display the plot
+    CS = ax.contour(Xln, Yln, Zln, norm=LogNorm(vmin=1, vmax=100.0),
+                     levels=np.logspace(start=0.3, stop=1.845, num=20, base=10));
+    fcg = ax.scatter(inau_relppc_y[:, 0], inau_relppc_y[:, 1], .8);
+    _ = ax.set_title('No. Components: {0}'.format(n_cpt));
+    # Labels on second last figure...assuming even number of figures
+    if n_cpt == n_cpts[-2]:
+        _ = ax.set_xlabel(in_cln)
+        _ = ax.set_ylabel(inau_y_val_cln)
+        _ = yt.frmt_xaxislbls(ax, fmt='{:.1%}', fmt0='{:.1%}', tickscle=0.01, tickscle0=0.01)
+        _ = yt.frmt_yaxislbls(ax, fmt='{:.0%}', fmt0='{:.0%}', tickscle=0.01, tickscle0=0.01)
+# Provide some more white space to allow the plots to breathe
+plt.subplots_adjust(wspace = 0.1)
+plt.subplots_adjust(hspace = 0.25)
+# %% md
+# **2020-09-22 Results Discussion**
+#
+# For two components EM essentially places a high likelihood
+# around the cluster of data centred on [2.5, 0]. As we increase the number of
+# components, EM starts to place more weight on the high-inflation,
+# high-positive change in gold prices. However, no significant 'peak' forms
+# in the upper-left, to me indicating that this method does not see much value
+# in bisecting the data.
 # %% md
 # ### 4.2 K-Means
 # %% codecell
 # Compute the clustering with k-means
-n_clusters = 4
-ppc_y_kmeans = KMeans(init='k-means++',
-                    n_clusters=n_clusters, n_init=10).fit(inau_relppc_y)
-kmeans_cluster_centers = ppc_y_kmeans.cluster_centers_
-kmeans_lbls = pairwise_distances_argmin(inau_relppc_y, kmeans_cluster_centers)
-# %% codecell
-# Plot the results
+# Define number of clusters to use
+n_clusters = [2, 3, 4, 5]
+# Set up the figure for the subplots
 colours = sns.color_palette('muted')
-fcg = plt.figure(figsize=(12, 9))
-for k, col in zip(range(n_clusters), colours):
-    my_members = kmeans_lbls == k
-    cluster_center = kmeans_cluster_centers[k]
-    fcg = plt.plot(inau_relppc_y[my_members, 0], inau_relppc_y[my_members, 1],
-                   'w', markerfacecolor=col, marker='.')
-    fcg = plt.plot(cluster_center[0], cluster_center[1], 'o',
-                   markerfacecolor=col, markeredgecolor='k', markersize=6)
-# TODO: Label axes
-# TODO: Add title
-# TODO: Do for n_clusters = [2, 3, 4, 5]
-# TODO: For multiple n_clusters, draw as subplots
+ncols = 2
+nrows = math.ceil(len(n_clusters) / ncols)
+fit = plt.figure(figsize=(13, 10))
+# Run through each number of clusters to use
+for axi in range(1, len(n_clusters) + 1):
+    nci = n_clusters[axi - 1]
+    ax = plt.subplot(nrows, ncols, axi)
+    # Fit the model
+    ppc_y_kmeans = KMeans(init='k-means++',
+                          n_clusters=nci, n_init=10).fit(inau_relppc_y)
+    kmeans_cluster_centers = ppc_y_kmeans.cluster_centers_
+    kmeans_lbls = pairwise_distances_argmin(inau_relppc_y, kmeans_cluster_centers)
+    # Plot the results
+    for k, col in zip(range(nci), colours):
+        my_members = kmeans_lbls == k
+        cluster_center = kmeans_cluster_centers[k]
+        fcg = ax.plot(inau_relppc_y[my_members, 0], inau_relppc_y[my_members, 1],
+                       'w', markerfacecolor=col, marker='.')
+        fcg = ax.plot(cluster_center[0], cluster_center[1], 'o',
+                       markerfacecolor=col, markeredgecolor='k', markersize=6)
+
+    _ = ax.set_title('No. of Clusters: {0}'.format(nci));
+    # Labels on second last figure...assuming even number of figures
+    if nci == n_clusters[-2]:
+        _ = ax.set_xlabel(in_cln)
+        _ = ax.set_ylabel(inau_y_val_cln)
+        _ = yt.frmt_xaxislbls(ax, fmt='{:.1%}', fmt0='{:.1%}', tickscle=0.01, tickscle0=0.01)
+        _ = yt.frmt_yaxislbls(ax, fmt='{:.0%}', fmt0='{:.0%}', tickscle=0.01, tickscle0=0.01)
+# Provide some more white space to allow the plots to breathe
+plt.subplots_adjust(wspace = 0.1)
+plt.subplots_adjust(hspace = 0.25)
 # %% md
-# 2020-09-15: For `n_clusters = 2`, k-means splits the data essentially along
+# **2020-09-15 Results Discussion**
+#
+# For `n_clusters = 2`, k-means splits the data essentially along
 # horizontal axis, separating when the gold price change into two halves of
 # when it is positive vs. negative. For `n_clusters = 3`, the data is further
 # dissected along a horizontal line for gold change at approximately 50%.
 # A similar trend occurs for `n_clusters = 4` with a further horizontal
 # bisection. In summary, it is not obvious that horizontal clustering provides
-# any insight into the gold vs. inflation relationship
+# any insight into the gold vs. inflation relationship.
 # %% md
-# ### 4.3 OPTICS
+# ### 4.3 OPTICS and DBSCAN
 # %% codecell
-# Define fit parameters
-clust = OPTICS(min_samples=5, xi=0.05, min_cluster_size=0.05)
+# Define the fit parameters to use
+clust = OPTICS(min_samples=20, xi=0.01, min_cluster_size=0.01)
 # Run the fit
-clust.fit(inau_relppc_y)
-eps = 2.0
-labels_200 = cluster_optics_dbscan(reachability=clust.reachability_,
-                                   core_distances=clust.core_distances_,
-                                   ordering=clust.ordering_, eps=eps);
+_ = clust.fit(inau_relppc_y)
+space = np.arange(len(inau_relppc_y))
+reachability = clust.reachability_[clust.ordering_]
+labels = clust.labels_[clust.ordering_]
 # %% codecell
-# Create and display the plot using OPTICS
-fit = plt.figure(figsize=(12, 9))
-ax1 = plt.subplot(121)
-ax2 = plt.subplot(122)
-for klass, colour in zip(range(0, 5), colours):
-    inau_relppc_y_k = inau_relppc_y[clust.labels_ == klass]
-    fcg = ax1.plot(inau_relppc_y_k[:, 0], inau_relppc_y_k[:, 1], color=colour,
-                 marker='o', ls='', alpha=0.3);
-fcg = ax1.plot(inau_relppc_y[clust.labels_ == -1, 0],
-         inau_relppc_y[clust.labels_ == -1, 1], 'k+', alpha=0.1);
-title = ax1.set_title('Automatic Clustering: OPTICS')
-# plt.show()
-# DBSCAN at eps=2.
-for klass, colour in zip(range(0, 4), colours):
-    inau_relppc_y_k = inau_relppc_y[labels_200 == klass]
-    fcg = ax2.plot(inau_relppc_y_k[:, 0], inau_relppc_y_k[:, 1], color=colour,
-                   marker='o', ls='', alpha=0.3)
-fcg = ax2.plot(inau_relppc_y[labels_200 == -1, 0],
-               inau_relppc_y[labels_200 == -1, 1], 'k+', alpha=0.1);
-title = 'Clustering at {0:.2f} epsilon cut: DBSCAN'.format(eps)
-fcg = ax2.set_title(title)
-plt.show()
-# TODO: Label axes
-# TODO: Do for eps = [0.5, 2]
-# TODO: To explore and understand significance of changing min_samples=5,
-# xi=0.05, min_cluster_size=0.05
+# Define the labels
+eps = [0.1, 0.5, 1.0, 1.5, 2.0]
+epslabels = []
+for e in eps:
+    _ = epslabels.append(cluster_optics_dbscan(reachability=clust.reachability_,
+                                               core_distances=clust.core_distances_,
+                                               ordering=clust.ordering_,
+                                               eps=e));
+# %% codecell
+# Set up the figure for the reachability plot
+colours = sns.color_palette('muted')
+fig, ax = plt.subplots(figsize=(12, 8))
+# Reachability plot
+for klass, colour in zip(range(0, 10), colours):
+    Xk = space[labels == klass]
+    Rk = reachability[labels == klass]
+    _ = ax.plot(Xk, Rk, ls='-', marker='.', color=colour, alpha=1)
+_ = ax.plot(space[labels == -1], reachability[labels == -1], ls='', marker='.', color='k', alpha=0.2)
+_ = ax.plot(space, np.full_like(space, 0.5, dtype=float), ls='-.', marker='', color='k', alpha=0.5)
+_ = ax.plot(space, np.full_like(space, 1.0, dtype=float), ls='-', marker='', color='k', alpha=0.5)
+_ = ax.plot(space, np.full_like(space, 2.0, dtype=float), ls='--', marker='', color='k', alpha=0.5)
+_ = ax.set_ylim(0, 3)
+_ = ax.set_ylabel('Reachability (epsilon distance)')
+_ = ax.set_title('Reachability Plot')
 # %% md
-# 2020-09-15: So similar to previous methods, clustering appears as horizontal
-# bisections
+# **2020-09-24 Results Discussion**
+#
+# So with `OPTICS(min_samples=20, xi=0.01, min_cluster_size=0.01)` it appears
+# that an `epsilon=1.5` may yield good results. Increasing `min_samples`
+# increases epsilon (roughly the distance to other points within the same
+# cluster) which broadens the criteria too far in my opinion. To reduce
+# epsilon we can reduce the sample size. However, I think that reducing the
+# sample size below approx. 20 reduces it too far loosing any relevance.
+#
+# Looking at different values for `xi=0.01, min_cluster_size=0.01` alter the
+# location and cut off for the reachability clusters (correct terminology?).
+# Values of `0.01` seem to be the best compromise for this dataset.
+#
+# **For reference from the Wikipedia pages on [DBSCAN](https://en.wikipedia.org/wiki/DBSCAN)
+# and  [OPTICS](https://en.wikipedia.org/wiki/OPTICS_algorithm)**
+#
+# Good values of ε are where this plot shows an elbow; if epsilon is chosen
+# much too small, a large part of the data will not be clustered; whereas for a
+# too high value of epsilon, clusters will merge and the majority of objects
+# will be in the same cluster. In general, small values of epsilon are
+# preferable, and as a rule of thumb only a small fraction of points should be
+# within this distance of each other.
+#
+# As a general rule for `min_samples` estimation, more points are generally
+# required for noisy data and for data that contains many duplicates (as a rule
+# of thumb, `min_samples` can be derived from the number of dimensions in the
+# data set). As we've seen in earlier analysis, and as expected for typical
+# financial trading data, there is a lot of noise in this dataset, hence
+# `min_samples` should be large.
+#
+# Note, that there are different algorithms that try to detect the valleys by
+# steepness, knee detection, or local maxima.
+# %% codecell
+# Set up the figure for the subplots
+
+ncols = 2
+nrows = math.ceil((len(eps) + 1)/ ncols)
+fit = plt.figure(figsize=(13, 16))
+# Run through each combination of the fit parameters
+for axi in range(1, len(eps) + 2):
+    ax = plt.subplot(nrows, ncols, axi)
+    # Create and display the plot using OPTICS
+    if axi == 1:
+        for klass, colour in zip(range(0, 5), colours):
+            inau_relppc_y_k = inau_relppc_y[clust.labels_ == klass]
+            fcg = ax.plot(inau_relppc_y_k[:, 0], inau_relppc_y_k[:, 1], color=colour,
+                         marker='o', ls='', alpha=0.3);
+        fcg = ax.plot(inau_relppc_y[clust.labels_ == -1, 0],
+                 inau_relppc_y[clust.labels_ == -1, 1], 'k+', alpha=0.1);
+        title = ax.set_title('Automatic Clustering: OPTICS')
+    # Create and display the plot using DBSCAN at eps
+    else:
+        epslabel = epslabels[axi - 2]
+        for klass, colour in zip(range(0, 4), colours):
+            inau_relppc_y_k = inau_relppc_y[epslabel == klass]
+            fcg = ax.plot(inau_relppc_y_k[:, 0], inau_relppc_y_k[:, 1], color=colour,
+                           marker='o', ls='', alpha=0.3)
+        fcg = ax.plot(inau_relppc_y[epslabel == -1, 0],
+                       inau_relppc_y[epslabel == -1, 1], 'k+', alpha=0.1);
+        title = 'Clustering at {0:.2f} epsilon cut: DBSCAN'.format(eps[axi - 2])
+        fcg = ax.set_title(title)
+    # Labels on second last figure...assuming even number of figures
+    if axi - 2 == len(epslabels) - 2:
+        _ = ax.set_xlabel(in_cln)
+        _ = ax.set_ylabel(inau_y_val_cln)
+        _ = yt.frmt_xaxislbls(ax, fmt='{:.1%}', fmt0='{:.1%}', tickscle=0.01, tickscle0=0.01)
+        _ = yt.frmt_yaxislbls(ax, fmt='{:.0%}', fmt0='{:.0%}', tickscle=0.01, tickscle0=0.01)
+# Provide some more white space to allow the plots to breathe
+plt.subplots_adjust(wspace = 0.1);
+plt.subplots_adjust(hspace = 0.25);
+# %% codecell
+# %% md
+# **2020-09-24 Results Discussion**
+#
+# The `DBSCAN` seems to align with `OPTICS` at for an epsilon of approx. 1.5.
+#
+# More broadly the methods appear to split the data horizontally similar to
+# the EM and K-Means methods.
 # %% md
 # ### 4.4 Mean-Shift (MS)
 # %% codecell
-# Calculate the MS
-bandwidth = estimate_bandwidth(inau_relppc_y, quantile=0.25)
-apc_ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
-apc_ms.fit(inau_relppc_y)
-lbls = apc_ms.labels_
-cluster_centers = apc_ms.cluster_centers_
-lbls_unique = np.unique(lbls)
-n_clusters_ = len(lbls_unique);
+# Define the quantiles to use
+quants = [0.1, 0.15, 0.2, 0.25, 0.3, 0.4]
 # %% codecell
-# Plot result
-fig = plt.figure(figsize=(12, 9));
-for k, colour in zip(range(n_clusters_), colours):
-    my_members = lbls == k
-    cluster_center = cluster_centers[k]
-    fcg = plt.plot(inau_relppc_y[my_members, 0], inau_relppc_y[my_members, 1],
-                   color=colour, marker='o', ls='', alpha=0.3)
-    fcg = plt.plot(cluster_center[0], cluster_center[1], 'o',
-                   markerfacecolor=colour, markeredgecolor='k', markersize=14)
-title = plt.title('Estimated number of clusters: {}'.format(n_clusters_))
-plt.show()
-# TODO: Label axes
-# TODO: Add title
-# TODO: Do for quantile = [0.05, 0.1, 0.2, 0.25, 0.4]
-# TODO: For multiple quantile, draw as subplots
+# Set up the figure for the subplots
+colours = sns.color_palette('muted')
+ncols = 2
+nrows = math.ceil((len(quants) + 1)/ ncols)
+fig = plt.figure(figsize=(13, 20))
+# Run through each combination of the fit parameters
+for axi in range(1, len(quants) + 1):
+    ax = plt.subplot(nrows, ncols, axi)
+    quant = quants[axi - 1]
+    # Calculate the MS
+    bandwidth = estimate_bandwidth(inau_relppc_y, quantile=quant);
+    apc_ms = MeanShift(bandwidth=bandwidth, bin_seeding=True);
+    _ = apc_ms.fit(inau_relppc_y);
+    lbls = apc_ms.labels_;
+    cluster_centers = apc_ms.cluster_centers_;
+    lbls_unique = np.unique(lbls);
+    n_clusters_ = len(lbls_unique);
+    # Plot result
+    for k, colour in zip(range(n_clusters_), colours):
+        my_members = lbls == k;
+        cluster_center = cluster_centers[k];
+        _ = ax.plot(inau_relppc_y[my_members, 0],
+                       inau_relppc_y[my_members, 1],
+                       color=colour, marker='o', ls='', alpha=0.3)
+        _ = ax.plot(cluster_center[0], cluster_center[1], 'o',
+                       markerfacecolor=colour, markeredgecolor='k', markersize=14)
+    _ = ax.set_title('Quant of {} :: Est. clusters: {}'.format(quant, n_clusters_))
+    if quant == quants[-2]:
+        _ = ax.set_xlabel(in_cln)
+        _ = ax.set_ylabel(inau_y_val_cln)
+        _ = yt.frmt_xaxislbls(ax, fmt='{:.1%}', fmt0='{:.1%}', tickscle=0.01, tickscle0=0.01)
+        _ = yt.frmt_yaxislbls(ax, fmt='{:.0%}', fmt0='{:.0%}', tickscle=0.01, tickscle0=0.01)
+# Provide some more white space to allow the plots to breathe
+plt.subplots_adjust(wspace = 0.1);
+plt.subplots_adjust(hspace = 0.25);
 # %% md
 # 2020-09-15: And so the same story continues, clustering appears as horizontal
 # bisections
@@ -547,7 +743,6 @@ plt.show()
 dtinau_nomppc_m = dtinau_nomppc_m.pivot_table(values=inau_m_val_cln,
                                               index=dtinau_nomppc_m.index,
                                               columns=inau_var_cln)
-# %% codecell
 yt.dispmodel(dtinau_nomppc_m, degree=1)
 # %% md
 # ### A.2 Inflation vs. real gold prices, monthly, polynomial order = 1
@@ -556,12 +751,15 @@ yt.dispmodel(dtinau_nomppc_m, degree=1)
 dtinau_relppc_m = dtinau_relppc_m.pivot_table(values=inau_m_val_cln,
                                               index=dtinau_relppc_m.index,
                                               columns=inau_var_cln)
-# %% codecell
 yt.dispmodel(dtinau_relppc_m)
 # %% md
-# ### A.3 Inflation vs. real gold prices, yearly, polynomial order = 1
+# ### A.3.1 Inflation vs. real gold prices, yearly, polynomial order = 1
 # %% codecell
 yt.dispmodel(dtinau_relppc_y, degree=1)
+# %% md
+# ### A.3.2 Inflation vs. real gold prices, yearly exc. 1980, polynomial order = 1
+# %% codecell
+yt.dispmodel(dtinau_relppc_y.loc[dtinau_relppc_y[yr_var_cln] != 1980], degree=1)
 # %% md
 # ### A.4 Inflation vs. real gold prices, yearly, polynomial order = 2
 # %% codecell
