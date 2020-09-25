@@ -22,10 +22,19 @@
 # - Python: datetime, fecon236, matplotlib, numpy, pandas, pandas_datareader,
 # sklearn, statsmodels, sympy, seaborn
 # - Written using Python 3.8.5, Atom 1.51, Hydrogen 2.14.4
+# - Written in Australian English
 #
-# ### General To Do List:
-# - Understand cluster analysis in greater detail
-# - Review peer work
+# %% md
+# ## Upfront Summary of Results
+# A significant positive correlation of inflation and gold prices has only
+# occurred in one year: 1980. That year saw very high inflation (by USD
+# historical standards) and large positive increases in the gold price.
+#
+# Removing the year 1980, and the data is mixed with no significant correlation.
+#
+# **TL;DR: Buy gold as a *possible* inflation hedge if you think inflation
+# will be really high i.e. over 12%**
+#
 # %% md
 # ## 0. Preamble: Code Setup and Function Definitions
 # %% md
@@ -350,10 +359,8 @@ for ax in fcg_relppc_y.axes.flat:
 # %% codecell
 # Add a column for calendar year
 yr_var_cln = 'Year'
-dtinau_nomrelppc_m[yr_var_cln] = dtinau_nomrelppc_m.index.year
 dtinau_relppc_y[yr_var_cln] = dtinau_relppc_y.index.year
 # Calculate mean by year for inflation, nominal and real gold prices
-inau_nomrelppcmn_m = dtinau_nomrelppc_m.groupby([inau_var_cln, yr_var_cln], as_index=False).mean()
 inau_relppcmn_y = dtinau_relppc_y.groupby([yr_var_cln], as_index=False).mean()
 # %% codecell
 n_colors = len(np.unique(dtinau_relppc_y.loc[:, yr_var_cln]))
@@ -379,10 +386,34 @@ for row in range(rows):
 # between high inflation and increases in gold prices is essentially driven
 # by one year, 1980. Interesting to note that 1981 still sees high inflation,
 # but declining gold prices.
+#
+# So does the correlation still hold if we remove the year 1980?
+# %% md
+# ### 3.4 Yearly Data exc. 1980
+# %% codecell
+# Display the chart
+sns.set_palette('muted')
+fcg_relppc_y = yt.snslmplot(data=dtinau_relppc_y.loc[dtinau_relppc_y[yr_var_cln] != 1980],
+                            xcol=in_ppc_y_cln, ycol=au_relppc_y_cln, degree=1)
+plt_relppc_y_title = 'Yearly Change in Gold Price (Real USD) vs. Inflation {} to {} exc. 1980'
+plt_relppc_y_title =  plt_relppc_y_title.format(dt_stp_ppc_y.strftime("%b %Y"),
+                                                dt_edp_ppc_y.strftime("%b %Y"))
+for ax in fcg_relppc_y.axes.flat:
+    fcg_relppc_y_ax = ax.set_title(plt_relppc_y_title)
+# %% md
+# **2020-09-25 Results Discussion** *(See Appendices for Statistics)*
+#
+# 1. Removing 1980 sees the correlation coefficient, r-squared's, regression
+# coefficient, t-stat all decline. The r-squared's are no approx. 0.015
+# indicating that the model only provides information for approx. 1.5% of the
+# movement in gold price. This indicates that aside from one exceptional year,
+# 1980, inflation has very little impact on the price of gold.
+#
+# Will now look at seeing if different models and techniques to analyse the data
+# reveal anything of interest.
 # %% md
 # ### 3.3 Yearly Data with Higher Order Polynomials
 # %% codecell
-sns.set_palette('muted')
 deg = 2     # Start at degree=2
 fig, axs = plt.subplots(ncols=2, nrows=2, figsize=(13.3, 10));
 for axx in axs:
@@ -401,7 +432,7 @@ for axx in axs:
 plt.subplots_adjust(wspace = 0.2)
 plt.subplots_adjust(hspace = 0.2)
 # %% md
-# **2020-09-22 Results Discussion** *(See Appendices for Statistics)*
+# **2020-09-25 Results Discussion** *(See Appendices for Statistics)*
 #
 # Adding more features sees the statistics improve suggesting higher order
 # polynomial models are a better fit (see number discussion below). However, a
@@ -420,7 +451,7 @@ plt.subplots_adjust(hspace = 0.2)
 # just by eyeballing the data), but really takes off when inflation is high.
 #
 # **So, in 2020, are we in the foreseeable future likely to have high inflation
-# reminiscent of the 1970's?** Unlikely in my view.
+# reminiscent of 1974, 1975, 1979, 1980 and 1981?** Unlikely in my view.
 #
 # Model statistics detail: The r-squared and adjusted r-squared's move higher
 # to values of ~0.21 for `order=2`, to ~0.28 for `order=[3,4,5]`. The
@@ -722,8 +753,13 @@ dtinau_relppc_m = dtinau_relppc_m.pivot_table(values=inau_m_val_cln,
                                               columns=inau_var_cln)
 yt.dispmodel(dtinau_relppc_m)
 # %% md
-# ### A.3 Inflation vs. real gold prices, yearly, polynomial order = 1
+# ### A.3.1 Inflation vs. real gold prices, yearly, polynomial order = 1
+# %% codecell
 yt.dispmodel(dtinau_relppc_y, degree=1)
+# %% md
+# ### A.3.2 Inflation vs. real gold prices, yearly exc. 1980, polynomial order = 1
+# %% codecell
+yt.dispmodel(dtinau_relppc_y.loc[dtinau_relppc_y[yr_var_cln] != 1980], degree=1)
 # %% md
 # ### A.4 Inflation vs. real gold prices, yearly, polynomial order = 2
 # %% codecell
