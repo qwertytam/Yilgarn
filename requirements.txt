@@ -1,6 +1,6 @@
 fecon236==10.8.0
 matplotlib==3.3.1
-numpy==1.19.2
+numpy==1.22.0
 pandas==1.1.2
 pandas-datareader==0.9.0
 pandocfilters==1.4.2
